@@ -16,7 +16,8 @@ class WindowResizer {
   move(x, y) {
     if (!this.active || !Number.isFinite(x) || !Number.isFinite(y)) return;
     const state = this.active;
-    this.window.setBounds(resizedBounds(state.bounds, state.edge, x - state.x, y - state.y));
+    const [width, height] = this.window.getMinimumSize();
+    this.window.setBounds(resizedBounds(state.bounds, state.edge, x - state.x, y - state.y, { width, height }));
   }
   end() { if (this.active) { this.active = null; this.saveBounds(); } }
 }

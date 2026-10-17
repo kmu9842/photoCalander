@@ -22,6 +22,7 @@ contextBridge.exposeInMainWorld('calendar', {
   beginResize: (edge, x, y) => ipcRenderer.send('window:resize-begin', edge, x, y),
   resizeTo: (x, y) => ipcRenderer.send('window:resize-to', x, y),
   endResize: () => ipcRenderer.send('window:resize-end'),
+  setEditorOpen: open => ipcRenderer.send('window:editor-open', open),
   saveSettings: (settings) => ipcRenderer.invoke('calendar:settings', settings),
   exportBackup: () => ipcRenderer.invoke('calendar:export'),
   importBackup: () => ipcRenderer.invoke('calendar:restore'),

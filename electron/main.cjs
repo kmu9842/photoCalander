@@ -7,6 +7,7 @@ const { CalendarStore, PHOTO_FILE, validateSettings } = require('./store.cjs');
 const { DesktopHost } = require('./desktop.cjs');
 const sharp = require('sharp');
 const { WindowResizer } = require('./window-resize.cjs');
+const { EditorPanel } = require('./editor-panel.cjs');
 const { clipboardFiles } = require('./clipboard-files.cjs');
 const { observeOutsideFocus } = require('./outside-focus.cjs');
 const { prepareImage } = require('./images.cjs');
@@ -19,7 +20,7 @@ else app.setPath('userData', path.join(app.getPath('appData'), 'PhotoCalendar'))
 app.setName('Photo Calendar');
 app.commandLine.appendSwitch('disable-features', 'HardwareMediaKeyHandling');
 protocol.registerSchemesAsPrivileged([{ scheme: 'photo', privileges: { standard: true, secure: true, supportFetchAPI: true } }]);
-let window, store, tray, host, resizer, quitting = false;
+let window, store, tray, host, resizer, editorPanel, quitting = false;
 let nativeDialogDepth = 0;
 async function withNativeDialog(action) {
   nativeDialogDepth++;
@@ -107,10 +108,11 @@ async function createWindow() {
     clearTimeout(boundsTimer);
     boundsTimer = setTimeout(() => {
       if (window.isDestroyed() || window.isMinimized()) return;
-      try { fs.writeFileSync(path.join(store.directory, 'window.json'), JSON.stringify(window.getBounds())); } catch { /* Window geometry is nonessential. */ }
+      try { fs.writeFileSync(path.join(store.directory, 'window.json'), JSON.stringify(editorPanel.calendarBounds())); } catch { /* Window geometry is nonessential. */ }
     }, 500);
   };
   resizer = new WindowResizer(window, persistBounds);
+  editorPanel = new EditorPanel(window, bounds => screen.getDisplayMatching(bounds).workArea, persistBounds);
   const dismissOnBlur = () => {
     resizer.end();
     // Owned native dialogs disable their owner.
@@ -296,6 +298,7 @@ else {
     ipcMain.on('window:resize-begin', (event, edge, x, y) => { checkSender(event); resizer?.begin(edge, x, y); });
     ipcMain.on('window:resize-to', (event, x, y) => { checkSender(event); resizer?.move(x, y); });
     ipcMain.on('window:resize-end', event => { checkSender(event); resizer?.end(); });
+    ipcMain.on('window:editor-open', (event, open) => { checkSender(event); editorPanel?.setOpen(open); });
     for (const [channel, action] of Object.entries({ 'window:minimize': () => window.hide(), 'window:hide': () => window.hide(), 'window:quit': () => { quitting = true; app.quit(); } })) {
       ipcMain.on(channel, event => { checkSender(event); action(); });
     }

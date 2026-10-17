@@ -13,6 +13,7 @@
     "test": "vitest run",
     "test:desktop": "node scripts/test-desktop.mjs",
     "test:interactions": "node scripts/test-interactions.mjs",
+    "test:layout": "node scripts/test-layout.mjs",
     "test:rich-text": "node scripts/test-rich-text.mjs",
     "test:background": "node scripts/test-background.mjs",
     "test:package": "node scripts/test-package.mjs",

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { ArrowDownToLine, ArrowUpFromLine, CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, ClipboardPaste, FolderOpen, ImagePlus, Images, LoaderCircle, Maximize2, Minus, Moon, Palette, Pin, Plus, RotateCcw, Settings2, Strikethrough, Sun, Trash2, X } from 'lucide-react';
 import { dateKey, emptyDay, fromKey, longDate, monthDays, shiftMonth, WEEKDAYS } from './calendar';
 import { MemoEditor, type MemoHandle } from './MemoEditor';
@@ -115,6 +115,8 @@ function SettingsModal({ settings, update, close, notify, restored, holidays, re
 }) {
   const [busy, setBusy] = useState(false);
   const [opacity, setOpacity] = useState(settings.opacity);
+  const [fontSize, setFontSize] = useState(String(settings.fontSize));
+  useEffect(() => { setFontSize(String(settings.fontSize)); }, [settings.fontSize]);
   const action = async (fn: () => Promise<void>) => { setBusy(true); try { await fn(); } catch (error) { notify(errorText(error)); } finally { setBusy(false); } };
   return <Modal title="위젯 설정" close={close}>
     <div className="modal-heading"><h2>설정</h2><IconButton label="설정 닫기" onClick={close}><X size={19} /></IconButton></div>
@@ -124,7 +126,10 @@ function SettingsModal({ settings, update, close, notify, restored, holidays, re
       <div className="setting-row opacity-setting"><strong>배경 불투명도</strong><output>{opacity}%</output><input aria-label="배경 불투명도" type="range" min={0} max={100} value={opacity} onChange={e => setOpacity(Number(e.target.value))} onPointerUp={() => void update({ opacity })} onKeyUp={() => void update({ opacity })} /></div>
       <div className="setting-row"><strong>표시 위치</strong><select aria-label="위젯 표시 위치" value={settings.windowMode} onChange={e => void update({ windowMode: e.target.value as Settings['windowMode'] })}><option value="desktop">바탕화면 고정</option><option value="normal">일반 위젯</option><option value="top">항상 위에</option></select></div>
       <div className="setting-row"><div><strong>한 주의 시작</strong></div><select aria-label="한 주의 시작" value={settings.weekStart} onChange={e => void update({ weekStart: Number(e.target.value) as 0 | 1 })}><option value={0}>일요일</option><option value={1}>월요일</option></select></div>
-      <div className="setting-row font-size-setting"><div><strong>전체 글자 크기</strong><p>날짜·요일·메모·메뉴에 함께 적용</p></div><select aria-label="전체 글자 크기" value={settings.fontSize} onChange={e => void update({ fontSize: Number(e.target.value) })}>{Array.from({ length: 41 }, (_, i) => i + 8).map(size => <option key={size} value={size}>{size}px{size === 13 ? ' (기본)' : ''}</option>)}</select></div>
+      <div className="setting-row font-size-setting"><div><strong>전체 글자 크기</strong><p>날짜·요일·메모·메뉴에 함께 적용 · 기본 13px</p></div><div className="font-size-spinner"><input type="number" aria-label="전체 글자 크기" min={8} max={48} step={1} value={fontSize} onChange={e => {
+        setFontSize(e.target.value);
+        if (e.target.value !== '' && e.target.validity.valid) void update({ fontSize: e.target.valueAsNumber });
+      }} onBlur={() => setFontSize(String(settings.fontSize))} /><span>px</span></div></div>
       <AppearanceSettings settings={settings} update={update} holidays={holidays} refresh={refreshHolidays} />
       <div className="setting-row"><strong>Windows 시작 시 실행</strong><button role="switch" aria-checked={settings.startAtLogin} aria-label="Windows 시작 시 실행" className={`switch ${settings.startAtLogin ? 'on' : ''}`} onClick={() => void update({ startAtLogin: !settings.startAtLogin })}><span /></button></div>
       <ExcelSettings restored={restored} notify={notify} />
@@ -142,6 +147,8 @@ export default function App() {
   const [today, setToday] = useState(() => dateKey(new Date()));
   const [selected, setSelected] = useState<string | null>(null);
   const [editorDate, setEditorDate] = useState<string | null>(null);
+  const editorOpen = editorDate !== null;
+  useLayoutEffect(() => { window.calendar?.setEditorOpen(editorOpen); }, [editorOpen]);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [monthPickerOpen, setMonthPickerOpen] = useState(false);
   const [lightbox, setLightbox] = useState<{ photos: Photo[]; index: number } | null>(null);
@@ -306,6 +313,7 @@ export default function App() {
 
   return <main className={`widget theme-${data.settings.theme} ${data.settings.opacity < 15 ? 'transparent-widget' : ''} ${editorDate ? 'editing' : ''}`} style={style}>
     {editorDate && <button type="button" className="editor-dismiss-layer" aria-label="편집창 바깥" tabIndex={-1} onClick={e => { e.stopPropagation(); setEditorDate(null); }} onDragEnter={e => { if (Array.from(e.dataTransfer.types).includes('Files')) setEditorDate(null); }} />}
+    <div className="calendar-layout">
     <header className="titlebar">
       <div className="brand"><CalendarDays size={15} strokeWidth={1.8} /><span>Photo Calendar</span></div>
       <div className="window-controls"><IconButton label={data.settings.windowMode === 'desktop' ? '바탕화면 고정 해제' : '바탕화면에 고정'} active={data.settings.windowMode === 'desktop'} onClick={() => void updateSettings({ windowMode: data.settings.windowMode === 'desktop' ? 'normal' : 'desktop' })}><Pin size={14} /></IconButton><span className="control-separator" /><IconButton label="트레이로 숨기기" onClick={() => { window.calendar.minimize(); }}><Minus size={16} /></IconButton><IconButton className="close-window" label="위젯 숨기기 (트레이에서 다시 열기)" onClick={() => { window.calendar.close(); }}><X size={16} /></IconButton></div>
@@ -345,6 +353,7 @@ export default function App() {
         </div>
       </section>
       {editorDate && <DayEditor key={editorDate} date={editorDate} entry={data.days[editorDate] || emptyDay()} update={updater => updateDay(editorDate, updater)} close={() => setEditorDate(null)} attach={() => choosePhotos(editorDate)} paste={() => void nativePhotos(editorDate, 'clipboard')} drop={files => void attachFiles(editorDate, files)} showPhoto={(photos, index) => setLightbox({ photos, index })} uploading={uploading > 0} />}
+    </div>
     </div>
     {failed && <button className="save-error" onClick={() => { for (const [date, entry] of dirty.current) persistDay(date, entry); }}><RotateCcw size={14} /> 저장 실패 · 재시도</button>}
     <ResizeHandles />

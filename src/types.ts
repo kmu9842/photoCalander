@@ -44,6 +44,7 @@ export interface DesktopAPI {
   beginResize(edge: ResizeEdge, x: number, y: number): void;
   resizeTo(x: number, y: number): void;
   endResize(): void;
+  setEditorOpen(open: boolean): void;
   saveSettings(settings: Settings): Promise<Settings>;
   exportBackup(): Promise<boolean>;
   importBackup(): Promise<CalendarData | null>;
