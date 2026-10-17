@@ -12,7 +12,7 @@ export const themeFor = (settings: Settings): ThemeDesign => settings.theme === 
   ? settings.customThemes?.find(t => t.id === settings.customThemeId) ?? BUILTIN_THEMES[0]
   : BUILTIN_THEMES.find(t => t.id === settings.theme) ?? BUILTIN_THEMES[0];
 export const rgb = (hex: string) => [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16)).join(',');
-export const themePatch = (theme: ThemeDesign, custom = false): Partial<Settings> => ({ theme: custom ? 'custom' : theme.id as Settings['theme'], customThemeId: custom ? theme.id : undefined, ...(!custom && ['light','dark'].includes(theme.id) ? { colorMode: theme.mode } : {}), backgroundColor: 'none', opacity: theme.opacity, fontFamily: theme.fontFamily, fontSize: theme.fontSize, lineWidth: theme.lineWidth });
+export const themePatch = (theme: ThemeDesign, custom = false): Partial<Settings> => ({ theme: custom ? 'custom' : theme.id as Settings['theme'], customThemeId: custom ? theme.id : undefined, ...(!custom && ['light','dark'].includes(theme.id) ? { colorMode: theme.mode } : {}), backgroundColor: 'none', opacity: theme.opacity, fontFamily: theme.fontFamily, lineWidth: theme.lineWidth });
 export function useSystemDark() {
   const [dark, setDark] = useState(() => matchMedia('(prefers-color-scheme: dark)').matches);
   useEffect(() => { const query = matchMedia('(prefers-color-scheme: dark)'); const update = () => setDark(query.matches); query.addEventListener('change', update); update(); return () => query.removeEventListener('change', update); }, []);

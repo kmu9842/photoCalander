@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { BUILTIN_THEMES, resolvedTheme } from '../src/themes';
+import { BUILTIN_THEMES, resolvedTheme, themePatch } from '../src/themes';
 import { photoBox } from '../src/photo-layout';
 const { CalendarStore, validateSettings, DEFAULT_SETTINGS, validateEntry } = createRequire(import.meta.url)('../electron/store.cjs');
 const dirs: string[] = [];
@@ -12,6 +12,20 @@ const make = () => { const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'photocal
 afterEach(() => dirs.splice(0).forEach(dir => fs.rmSync(dir, { recursive: true, force: true })));
 const photo = { id: 'photo', file: randomUUID() + '.jpg', name: '추억.jpg', width: 1200, height: 800 };
 describe('saved themes and photo arrangements', () => {
+  it('keeps the chosen font size when applying any theme and persists the privacy cover', () => {
+    const store = make();
+    store.saveSettings({ ...store.data.settings, fontSize: 21, privacyLocked: true });
+    for (const theme of BUILTIN_THEMES) {
+      store.saveSettings({ ...store.data.settings, ...themePatch(theme) });
+      expect(store.data.settings.fontSize).toBe(21);
+    }
+    const custom = { ...BUILTIN_THEMES[2], id: 'my-theme', fontSize: 8 };
+    store.saveSettings({ ...store.data.settings, customThemes: [custom], ...themePatch(custom, true) });
+    expect(new CalendarStore(store.directory).data.settings).toMatchObject({ fontSize: 21, privacyLocked: true });
+    const { privacyLocked: _locked, ...oldSettings } = DEFAULT_SETTINGS;
+    expect(validateSettings(oldSettings).privacyLocked).toBe(false);
+    expect(() => validateSettings({ ...DEFAULT_SETTINGS, privacyLocked: 'yes' })).toThrow();
+  });
   it('follows system brightness by default, persists overrides and keeps the selected design', () => {
     const { colorMode: _mode, softFocus: _focus, ...old } = DEFAULT_SETTINGS;
     expect(validateSettings(old)).toMatchObject({ colorMode: 'system', softFocus: true });

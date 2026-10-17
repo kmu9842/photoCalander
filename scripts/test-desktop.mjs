@@ -44,7 +44,7 @@ try {
   await memo.press('Control+Home');
   await memo.press('ArrowRight'); await memo.press('ArrowRight'); await memo.press('ArrowRight');
   await memo.press('Shift+ArrowRight'); await memo.press('Shift+ArrowRight');
-  await page.getByRole('button', { name: '현재 줄 취소선', exact: true }).click();
+  await memo.getByRole('checkbox', { name: '1번째 줄 완료', exact: true }).click();
   await expectMemo(memo, '오전 회의 자료 준비\n두 번째 줄\n\n마지막 줄');
   await expect(memo.locator('s')).toHaveText('오전 회의 자료 준비');
   await expect(memo.locator('s')).toHaveCSS('text-decoration-line', 'line-through');
@@ -116,7 +116,10 @@ try {
   await expect(page.locator('.widget')).toHaveClass(/theme-dark/);
   await page.getByRole('button', { name: '설정 닫기', exact: true }).click();
   await page.screenshot({ path: path.join(results, 'widget-dark.png') });
-  await page.getByRole('button', { name: '라이트 테마', exact: true }).click();
+  await page.getByRole('button', { name: '위젯 설정', exact: true }).click();
+  await page.getByRole('tab', { name: '테마', exact: true }).click();
+  await page.getByRole('combobox', { name: '화면 밝기 모드', exact: true }).selectOption('light');
+  await page.getByRole('button', { name: '설정 닫기', exact: true }).click();
   await expect(page.locator('.widget')).toHaveClass(/theme-light/);
   // Resize by dragging the actual handle; never substitute setSize for the action.
   const resize = async () => {

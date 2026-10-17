@@ -2,7 +2,6 @@ import { useEffect, useState, type CSSProperties } from 'react';
 import { Copy, Pencil, Plus, Trash2 } from 'lucide-react';
 import { BUILTIN_THEMES, contrastRatio, resolvedTheme, themePatch, useSystemDark } from './themes';
 import { FRAME_NAMES } from './PhotoFrame';
-import { FontSizeSpinner } from './FontSizeSpinner';
 import { BUNDLED_FONTS, fontStack } from './AppearanceSettings';
 import type { Settings, ThemeDesign } from './types';
 
@@ -59,7 +58,7 @@ export function ThemeSettings({ settings, update }: { settings: Settings; update
       <label className="theme-field">모서리 {draft.radius}px<input aria-label="테마 모서리" type="range" min={0} max={24} value={draft.radius} onChange={e => change({ radius: +e.target.value })} /></label>
       <label className="theme-field">불투명도 {draft.opacity}%<input aria-label="테마 불투명도" type="range" min={0} max={100} value={draft.opacity} onChange={e => change({ opacity: +e.target.value })} /></label>
       <label className="theme-field">글꼴<select aria-label="테마 글꼴" value={draft.fontFamily} onChange={e => change({ fontFamily: e.target.value })}><option value="">테마 기본</option>{[...new Set([draft.fontFamily, ...BUNDLED_FONTS, ...fonts])].filter(Boolean).map(font => <option key={font}>{font}</option>)}</select></label>
-      <div className="theme-field"><span>글자 크기</span><FontSizeSpinner label="테마 글자 크기" value={draft.fontSize} change={fontSize => change({ fontSize })} /></div>
+      <p className="theme-empty">글자 크기는 화면 설정에서 선택한 크기를 유지합니다.</p>
       <label className="theme-field">선 두께<select aria-label="테마 선 두께" value={draft.lineWidth} onChange={e => change({ lineWidth: +e.target.value })}>{Array.from({ length: 13 }, (_, i) => i / 2).map(v => <option key={v} value={v}>{v}px</option>)}</select></label>
       <div className="theme-save-actions"><button className="primary" disabled={busy || !draft.name.trim()} onClick={() => void save()}>저장하고 적용</button>{saved.some(t => t.id === draft.id) && <button disabled={busy || !draft.name.trim()} onClick={() => void save(true)}><Copy size={14} /> 새 테마로 저장</button>}</div>
     </section>}

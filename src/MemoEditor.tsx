@@ -1,4 +1,4 @@
-import { forwardRef, useImperativeHandle, useLayoutEffect, useRef } from 'react';
+import { useLayoutEffect, useRef } from 'react';
 import { Fragment, Slice } from 'prosemirror-model';
 import { EditorState } from 'prosemirror-state';
 import { EditorView } from 'prosemirror-view';
@@ -6,34 +6,22 @@ import { baseKeymap } from 'prosemirror-commands';
 import { history, undo, redo } from 'prosemirror-history';
 import { keymap } from 'prosemirror-keymap';
 import 'prosemirror-view/style/prosemirror.css';
-import { currentLineStruck, memoDocument, memoSchema, readMemo, selectedTextSize, setTextSize, toggleLineStrike, type MemoValue } from './memo';
+import { memoDocument, memoSchema, readMemo, toggleLineStrike, type MemoValue } from './memo';
+import { memoChecklist } from './memo-checklist';
 
-export interface MemoHandle { toggleStrike(): void; setFontSize(size: number | null): void }
-export interface MemoFormat { strike: boolean; fontSize: number | null }
-
-export const MemoEditor = forwardRef<MemoHandle, { value: MemoValue; fontSize: number; autoFocus?: boolean; onChange(value: MemoValue): void; onFormatChange(format: MemoFormat): void }>(function MemoEditor({ value, fontSize, autoFocus = true, onChange, onFormatChange }, ref) {
+export function MemoEditor({ value, autoFocus = true, onChange }: { value: MemoValue; autoFocus?: boolean; onChange(value: MemoValue): void }) {
   const host = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
-  const callbacks = useRef({ onChange, onFormatChange, fontSize });
-  callbacks.current = { onChange, onFormatChange, fontSize };
+  const callbacks = useRef({ onChange });
+  callbacks.current = { onChange };
   const lastValue = useRef(value);
-
-  useImperativeHandle(ref, () => ({ toggleStrike() {
-    const view = viewRef.current;
-    if (!view) return;
-    toggleLineStrike(view.state, view.dispatch);
-    view.focus();
-  }, setFontSize(size) {
-    const view = viewRef.current;
-    if (view) setTextSize(size)(view.state, view.dispatch);
-  } }), []);
 
   useLayoutEffect(() => {
     if (!host.current) return;
     const view = new EditorView(host.current, {
       state: EditorState.create({
         doc: memoDocument(lastValue.current),
-        plugins: [history(), keymap({
+        plugins: [history(), memoChecklist, keymap({
           'Mod-5': toggleLineStrike,
           'Mod-Shift-x': toggleLineStrike,
           'Mod-z': undo, 'Mod-y': redo, 'Mod-Shift-z': redo,
@@ -46,7 +34,6 @@ export const MemoEditor = forwardRef<MemoHandle, { value: MemoValue; fontSize: n
       dispatchTransaction(transaction) {
         const state = view.state.apply(transaction);
         view.updateState(state);
-        callbacks.current.onFormatChange({ strike: currentLineStruck(state), fontSize: selectedTextSize(state, callbacks.current.fontSize) });
         if (transaction.docChanged) {
           lastValue.current = readMemo(state.doc);
           callbacks.current.onChange(lastValue.current);
@@ -64,7 +51,6 @@ export const MemoEditor = forwardRef<MemoHandle, { value: MemoValue; fontSize: n
       },
     });
     viewRef.current = view;
-    callbacks.current.onFormatChange({ strike: currentLineStruck(view.state), fontSize: selectedTextSize(view.state, callbacks.current.fontSize) });
     return () => { viewRef.current = null; view.destroy(); };
   }, []);
 
@@ -78,10 +64,5 @@ export const MemoEditor = forwardRef<MemoHandle, { value: MemoValue; fontSize: n
     if (!view.state.doc.eq(doc)) view.updateState(EditorState.create({ doc, plugins: view.state.plugins }));
   }, [value.text, value.strikes, value.textColors, value.textSizes]);
 
-  useLayoutEffect(() => {
-    const view = viewRef.current;
-    if (view) callbacks.current.onFormatChange({ strike: currentLineStruck(view.state), fontSize: selectedTextSize(view.state, fontSize) });
-  }, [fontSize]);
-
   return <div className="memo-host" ref={host} />;
-});
+}

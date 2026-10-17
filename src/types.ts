@@ -19,6 +19,7 @@ export interface Settings {
   theme: 'light' | 'dark' | 'polaroid' | 'analog' | 'custom';
   colorMode: 'system' | 'light' | 'dark';
   softFocus: boolean;
+  privacyLocked: boolean;
   customThemes?: ThemeDesign[];
   customThemeId?: string;
   backgroundColor: PaletteColor;

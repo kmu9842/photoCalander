@@ -1,7 +1,7 @@
 {
   "name": "photo-calendar",
   "productName": "Photo Calendar",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "description": "사진과 메모를 담는 Windows 바탕화면 달력 위젯",
   "author": "Photo Calendar",
   "private": true,
@@ -15,6 +15,8 @@
     "test:interactions": "node scripts/test-interactions.mjs",
     "test:layout": "node scripts/test-layout.mjs",
     "test:editor-size": "node scripts/test-editor-size.mjs",
+    "test:editor-dpi": "node scripts/test-editor-dpi.mjs",
+    "test:privacy": "node scripts/test-privacy.mjs",
     "test:formatting": "node scripts/test-formatting.mjs",
     "test:photos": "node scripts/test-photo-layout.mjs",
     "test:themes": "node scripts/test-themes.mjs",

@@ -8,6 +8,7 @@ const { DesktopHost } = require('./desktop.cjs');
 const sharp = require('sharp');
 const { WindowResizer } = require('./window-resize.cjs');
 const { EditorPanel } = require('./editor-panel.cjs');
+const { createNativeBounds } = require('./window-bounds.cjs');
 const { clipboardFiles } = require('./clipboard-files.cjs');
 const { observeOutsideFocus } = require('./outside-focus.cjs');
 const { prepareImage, photoLuminance } = require('./images.cjs');
@@ -113,8 +114,9 @@ async function createWindow() {
       try { fs.writeFileSync(path.join(store.directory, 'window.json'), JSON.stringify(editorPanel.calendarBounds())); } catch { /* Window geometry is nonessential. */ }
     }, 500);
   };
-  resizer = new WindowResizer(window, persistBounds);
-  editorPanel = new EditorPanel(window, bounds => screen.getDisplayMatching(bounds).workArea, persistBounds);
+  const nativeBounds = createNativeBounds(window, () => screen.getDisplayMatching(window.getBounds()).scaleFactor);
+  resizer = new WindowResizer(window, persistBounds, nativeBounds);
+  editorPanel = new EditorPanel(window, bounds => screen.getDisplayMatching(bounds).workArea, persistBounds, nativeBounds);
   const dismissOnBlur = () => {
     resizer.end();
     // Owned native dialogs disable their owner.

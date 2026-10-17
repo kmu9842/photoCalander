@@ -4,6 +4,19 @@ const { EditorPanel } = createRequire(import.meta.url)('../electron/editor-panel
 const original = { x: 900, y: 150, width: 1000, height: 800 };
 
 describe('temporary editor window geometry', () => {
+  it('corrects rounding on collapse as well as expansion at fractional Windows DPI', () => {
+    let bounds = { ...original };
+    const window = {
+      getBounds: () => ({ ...bounds }),
+      setBounds: (next: typeof original) => { bounds = { ...next, width: next.width + 1, height: next.height + 1 }; },
+      setMinimumSize: () => {},
+    };
+    const panel = new EditorPanel(window, () => ({ x: 0, y: 0, width: 1920, height: 1080 }), () => {});
+    for (let i = 0; i < 30; i++) {
+      panel.setOpen(true); panel.setOpen(false);
+      expect(bounds).toEqual(original);
+    }
+  });
   it('restores actual expansion, including platform adjustments to width and height, across repeated cycles', () => {
     let bounds = { ...original };
     const saved: typeof original[] = [];

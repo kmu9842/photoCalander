@@ -4,12 +4,13 @@ import type { Photo, PhotoFrame, PhotoSize } from './types';
 import { PhotoFrameImage } from './PhotoFrame';
 import { photoBox } from './photo-layout';
 
-type Props = { photos: Photo[]; size: PhotoSize; blur?: boolean; defaultFrame?: PhotoFrame; free?: boolean; show: (index: number) => void };
+type Props = { photos: Photo[]; size: PhotoSize; blur?: boolean; disabled?: boolean; defaultFrame?: PhotoFrame; free?: boolean; show: (index: number) => void };
 
-function SmallPhoto({ photos, blur, show, defaultFrame = 'none', free = false }: Props) {
+function SmallPhoto({ photos, blur, disabled, show, defaultFrame = 'none', free = false }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const [preview, setPreview] = useState<CSSProperties | null>(null);
+  useEffect(() => { if (disabled) { clearTimeout(timer.current); setPreview(null); } }, [disabled]);
   const [cellSize, setCellSize] = useState({ width: 150, height: 120 });
   useEffect(() => {
     const cell = ref.current?.closest('.day-cell');
@@ -59,7 +60,7 @@ function SmallPhoto({ photos, blur, show, defaultFrame = 'none', free = false }:
       <span className="small-photo-rotation" style={free ? { transform: `rotate(${box.rotation}deg)` } : undefined}><PhotoFrameImage src={`photo://local/${photos[0].file}?thumb=1`} alt={photos[0].name} frame={frame} /></span>
       {photos.length > 1 && <span className="small-photo-count">{photos.length}</span>}
     </button>
-    {preview && createPortal(<div id={id} role="tooltip" className={`small-photo-preview ${blur ? 'photo-blurred' : ''}`} style={preview} onPointerEnter={cancelHide} onPointerLeave={hide}>
+    {preview && !disabled && createPortal(<div id={id} role="tooltip" className={`small-photo-preview ${blur ? 'photo-blurred' : ''}`} style={preview} onPointerEnter={cancelHide} onPointerLeave={hide}>
       <button aria-label={`${photos[0].name} 크게 보기`} onClick={event => { event.stopPropagation(); open(); }}><PhotoFrameImage src={`photo://local/${photos[0].file}?thumb=1`} alt={photos[0].name} frame={frame} fit="contain" /></button>
       {photos.length > 1 && <span className="small-photo-count">1 / {photos.length}</span>}
     </div>, document.body)}
@@ -76,7 +77,7 @@ function PositionedPhotos({ photos, size, blur, show, defaultFrame = 'none' }: P
   })}</div>;
 }
 
-export function CellPhotos({ photos, size, blur, show, defaultFrame = 'none', free = false }: Props) {
+export function CellPhotos({ photos, size, blur, disabled, show, defaultFrame = 'none', free = false }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const [tone, setTone] = useState('light');
   const files = JSON.stringify(photos.slice(0, 3).map(photo => photo.file));
@@ -102,7 +103,7 @@ export function CellPhotos({ photos, size, blur, show, defaultFrame = 'none', fr
     return () => { revision++; observer.disconnect(); };
   }, [files, size]);
 
-  if (size === 'small') return <SmallPhoto photos={photos} size={size} blur={blur} show={show} defaultFrame={defaultFrame} free={free} />;
+  if (size === 'small') return <SmallPhoto photos={photos} size={size} blur={blur} disabled={disabled} show={show} defaultFrame={defaultFrame} free={free} />;
   if (free && size === 'medium') return <PositionedPhotos photos={photos} size={size} blur={blur} show={show} defaultFrame={defaultFrame} />;
   return <div ref={ref} data-text-tone={tone} className={`cell-photos photo-size-${size} count-${Math.min(photos.length, 3)} ${blur ? 'photo-blurred' : ''}`}>
     {photos.slice(0, 3).map((photo, index) => <button key={photo.id} className="cell-photo" onClick={event => { if (size === 'large') return; event.stopPropagation(); show(index); }} onDoubleClick={event => event.stopPropagation()} aria-label={`${photo.name} ${size === 'large' ? '날짜 일정 편집' : '보기'}`}>

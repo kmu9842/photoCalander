@@ -12,6 +12,12 @@ let app;
 try {
   app = await electron.launch({ args: [root], env });
   let page = await app.firstWindow();
+  const setBrightness = async mode => {
+    await page.getByRole('button', { name: '위젯 설정', exact: true }).click();
+    await page.getByRole('tab', { name: '테마', exact: true }).click();
+    await page.getByRole('combobox', { name: '화면 밝기 모드', exact: true }).selectOption(mode);
+    await page.getByRole('button', { name: '설정 닫기', exact: true }).click();
+  };
   await page.emulateMedia({ colorScheme: 'light' });
   const widget = page.locator('.widget');
   const toggle = page.locator('.navigation').getByRole('button', { name: '달력 배경색', exact: true });
@@ -42,7 +48,7 @@ try {
   await expect(palette.getByRole('textbox', { name: '색상 코드' })).toHaveValue('#abc123');
   await palette.getByRole('button', { name: '#bfdbfe 색상', exact: true }).click();
   await settings.getByRole('button', { name: '설정 닫기', exact: true }).click();
-  await page.getByRole('button', { name: '다크 테마', exact: true }).click();
+  await setBrightness('dark');
   await expect(widget).toHaveClass(/theme-polaroid mode-dark/);
   await expect(widget).toHaveCSS('background-color', 'rgba(191, 219, 254, 0.3)');
   // Per-day highlights and light-dismiss remain independent of the background.
@@ -63,7 +69,7 @@ try {
   await page.locator('.navigation').getByRole('button', { name: '달력 배경색', exact: true }).click();
   await page.getByRole('button', { name: '기본색', exact: true }).click();
   await expect(page.locator('.widget')).toHaveCSS('background-color', 'rgba(34, 34, 34, 0.3)');
-  await page.getByRole('button', { name: '라이트 테마', exact: true }).click();
+  await setBrightness('light');
   await expect(page.locator('.widget')).toHaveCSS('background-color', 'rgba(255, 255, 255, 0.3)');
   await page.locator('.navigation').getByRole('button', { name: '달력 배경색', exact: true }).click();
   await page.screenshot({ path: path.join(root, 'test-results/calendar-background.png') });

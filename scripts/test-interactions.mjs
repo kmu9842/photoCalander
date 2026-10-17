@@ -109,9 +109,9 @@ try {
   await drop(wide, 'wide.png');
   await expect(today.locator('img')).toHaveCount(1);
   await assertWholeImage(today.locator('img').first(), 5);
-  await assertWholeImage(editor.locator('img').first(), 5);
+  await assertWholeImage(editor.locator('.editor-photo img').first(), 5);
   const photoBox = await editor.locator('.editor-photo').first().boundingBox();
-  const imageBox = await editor.locator('img').first().boundingBox();
+  const imageBox = await editor.locator('.editor-photo img').first().boundingBox();
   const editorBox = await editor.boundingBox();
   assert.ok(Math.abs(photoBox.height - imageBox.height) < 1, 'Photo container follows the image height without a reserved blank slot');
   assert.ok(Math.abs(imageBox.width / imageBox.height - 5) < .02, 'Image element itself follows the original ratio');
@@ -154,7 +154,7 @@ try {
   await expect(today.locator('img')).toHaveCount(2);
   await assertWholeImage(today.locator('img').nth(0), 5);
   await assertWholeImage(today.locator('img').nth(1), .2);
-  await assertWholeImage(editor.locator('img').nth(1), .2);
+  await assertWholeImage(editor.locator('.editor-photo img').nth(1), .2);
   await drop(wide, 'wide-second.png');
   await expect(today.locator('img')).toHaveCount(3);
   for (const [i, ratio] of [5, .2, 5].entries()) await assertWholeImage(today.locator('img').nth(i), ratio);

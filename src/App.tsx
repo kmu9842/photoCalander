@@ -1,7 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
-import { ArrowDownToLine, ArrowUpFromLine, CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, ClipboardPaste, FolderOpen, ImagePlus, Images, LoaderCircle, Maximize2, Minus, Moon, Palette, Pin, Plus, RotateCcw, Settings2, Strikethrough, Sun, Trash2, X } from 'lucide-react';
+import { ArrowDownToLine, ArrowUpFromLine, CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, ClipboardPaste, FolderOpen, ImagePlus, Images, LoaderCircle, Lock, LockOpen, Maximize2, Minus, Palette, Pin, Plus, RotateCcw, Settings as SettingsIcon, Trash2, X } from 'lucide-react';
 import { dateKey, emptyDay, fromKey, longDate, monthDays, shiftMonth, WEEKDAYS } from './calendar';
-import { MemoEditor, type MemoFormat, type MemoHandle } from './MemoEditor';
+import { MemoEditor } from './MemoEditor';
 import { FontSizeSpinner } from './FontSizeSpinner';
 import { useEditorPanel } from './useEditorPanel';
 import { CellPhotos } from './CellPhotos';
@@ -103,21 +103,15 @@ function DayEditor({ date, entry, defaultFontSize, defaultFrame, ready, update, 
   date: string; entry: DayEntry; defaultFontSize: number; defaultFrame: PhotoFrame; ready: boolean; update: (updater: (entry: DayEntry) => DayEntry) => void;
   close: () => void; attach: () => void; paste: () => void; drop: (files: File[]) => void; showPhoto: (photos: Photo[], index: number) => void; uploading: boolean;
 }) {
-  const memo = useRef<MemoHandle>(null);
   const [arranging, setArranging] = useState(false);
   const fontSize = entry.fontSize ?? defaultFontSize;
-  const [format, setFormat] = useState<MemoFormat>({ strike: false, fontSize });
   return <aside className="day-editor" aria-label={`${longDate(date)} 기록`} style={{ '--memo-font-size': `${fontSize}px` } as CSSProperties} onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }} onDrop={e => { e.preventDefault(); e.stopPropagation(); drop(Array.from(e.dataTransfer.files)); }}>
     <div className="editor-heading"><h2>{longDate(date)}</h2><IconButton label="편집 닫기" onClick={close}><X size={18} /></IconButton></div>
     <div className="editor-body">
-      <div className="editor-tools"><ColorPicker value={entry.color} change={color => update(day => ({ ...day, color }))} /><button className="strike-button" title="커서가 있는 줄 취소선 · Ctrl+5" aria-label="현재 줄 취소선" aria-keyshortcuts="Control+5" aria-pressed={format.strike} onMouseDown={e => e.preventDefault()} onClick={() => memo.current?.toggleStrike()}><Strikethrough size={18} /><span>줄 취소선</span><kbd>Ctrl+5</kbd></button></div>
-      <div className="memo-formatting">
-        <div className="memo-size-row"><span>날짜 기본 크기</span><FontSizeSpinner label="날짜 기본 글자 크기" value={fontSize} change={fontSize => update(day => ({ ...day, fontSize }))} /><button className="format-reset" disabled={entry.fontSize === undefined} title="전체 글자 크기 설정 따르기" onClick={() => update(day => ({ ...day, fontSize: undefined }))}>전체 설정</button></div>
-        <div className="memo-size-row"><span>선택·입력 글자</span><FontSizeSpinner label="선택 글자 크기" value={format.fontSize} change={size => memo.current?.setFontSize(size)} /><button className="format-reset" title="선택한 글자를 날짜 기본 크기로" onMouseDown={e => e.preventDefault()} onClick={() => memo.current?.setFontSize(null)}>날짜 기본</button></div>
-      </div>
-      <MemoEditor ref={memo} value={entry} fontSize={fontSize} autoFocus={ready} onChange={value => update(day => ({ ...day, ...value, textColors: value.textColors, textSizes: value.textSizes }))} onFormatChange={setFormat} />
+      <div className="editor-tools"><span className="memo-label">메모</span><ColorPicker value={entry.color} change={color => update(day => ({ ...day, color }))} /></div>
+      <MemoEditor value={entry} autoFocus={ready} onChange={value => update(day => ({ ...day, ...value, textColors: value.textColors, textSizes: value.textSizes }))} />
       <div className="section-label photos-heading"><span>사진</span><div className="photo-actions"><IconButton label="사진 붙여넣기" disabled={uploading} onClick={paste}><ClipboardPaste size={16} /></IconButton><IconButton label="사진 첨부" disabled={uploading || entry.photos.length >= 20} onClick={attach}>{uploading ? <LoaderCircle className="spin" size={16} /> : <Plus size={17} />}</IconButton></div></div>
-      <div className="photo-settings"><div className="photo-setting-row"><span>달력 사진 블러</span><button role="switch" aria-label="날짜 사진 블러" aria-checked={!!entry.photoBlur} className={`switch ${entry.photoBlur ? 'on' : ''}`} onClick={() => update(day => ({ ...day, photoBlur: !day.photoBlur }))}><span /></button></div><div className="photo-setting-row"><span>칸에서 사진 크기</span><div className="segmented" role="group" aria-label="날짜 사진 크기">{([['large', '대'], ['medium', '중'], ['small', '소']] as [PhotoSize, string][]).map(([size, label]) => <button key={size} aria-pressed={(entry.photoSize ?? 'medium') === size} className={(entry.photoSize ?? 'medium') === size ? 'selected' : ''} onClick={() => update(day => ({ ...day, photoSize: size }))}>{label}</button>)}</div></div></div>
+      <div className="photo-settings"><div className="photo-setting-row"><span>칸에서 사진 크기</span><div className="segmented" role="group" aria-label="날짜 사진 크기">{([['large', '대'], ['medium', '중'], ['small', '소']] as [PhotoSize, string][]).map(([size, label]) => <button key={size} aria-pressed={(entry.photoSize ?? 'medium') === size} className={(entry.photoSize ?? 'medium') === size ? 'selected' : ''} onClick={() => update(day => ({ ...day, photoSize: size }))}>{label}</button>)}</div></div></div>
       {entry.photos.length === 0 ? <button className="photo-dropzone" aria-label="파일에서 사진 선택" onClick={attach} disabled={uploading}><ImagePlus size={24} /><span>사진 추가</span></button> : <div className="editor-photos">{entry.photos.map((photo, i) => <div key={photo.id} className="editor-photo"><button onClick={() => showPhoto(entry.photos, i)} aria-label={`${photo.name} 크게 보기`}><img src={photoURL(photo, true)} alt={photo.name} /><span className="photo-zoom"><Maximize2 size={14} /></span></button><button className="delete-photo" aria-label={`${photo.name} 사진 제거`} onClick={() => update(day => ({ ...day, photos: day.photos.filter(p => p.id !== photo.id) }))}><Trash2 size={13} /></button></div>)}</div>}
       {entry.photos.length > 0 && <button className="photo-arrange-toggle" aria-expanded={arranging} onClick={() => setArranging(!arranging)}><Images size={15} /> 사진 틀 · 위치 · 기울기<ChevronDown size={14} /></button>}
       {arranging && entry.photos.length > 0 && <PhotoArrangement date={date} entry={entry} defaultFrame={defaultFrame} update={update} />}
@@ -197,6 +191,10 @@ export default function App() {
   const showHolidays = data?.settings.showHolidays;
   const holidayCountry = data?.settings.holidayCountry;
   const weekStart = data?.settings.weekStart;
+  const privacyLocked = data?.settings.privacyLocked ?? false;
+  useEffect(() => {
+    if (privacyLocked) { setEditorDate(null); setLightbox(null); setSettingsOpen(false); setMonthPickerOpen(false); setDropDate(null); }
+  }, [privacyLocked]);
   useEffect(() => {
     if (!showHolidays || holidayCountry === undefined || weekStart === undefined) {
       setHolidays({ countryCode: '', holidays: [], stale: false, error: '', loading: false });
@@ -273,7 +271,7 @@ export default function App() {
   }, [notify, replaceData]);
 
   const attachFiles = useCallback(async (date: string, files: File[]) => {
-    if (!files.length || !dataRef.current) return;
+    if (!files.length || !dataRef.current || dataRef.current.settings.privacyLocked) return;
     if (files.some(file => !['image/png', 'image/jpeg', 'image/webp', 'image/gif'].includes(file.type) && !/\.(png|jpe?g|webp|gif)$/i.test(file.name))) { notify('JPG, PNG, WEBP, GIF 사진을 선택해 주세요.'); return; }
     if ((dataRef.current.days[date]?.photos.length || 0) + files.length > 20) { notify('하루에 사진을 20장까지 첨부할 수 있어요.'); return; }
     setUploading(count => count + 1);
@@ -291,7 +289,7 @@ export default function App() {
   }, [notify, updateDay]);
 
   const nativePhotos = useCallback(async (date: string, source: 'file' | 'clipboard', quiet = false) => {
-    if (!dataRef.current) return;
+    if (!dataRef.current || dataRef.current.settings.privacyLocked) return;
     setUploading(count => count + 1);
     try {
       const photos = await (source === 'file' ? window.calendar.pickPhotos() : window.calendar.pastePhotos());
@@ -306,6 +304,7 @@ export default function App() {
   const navigate = useCallback((amount: number) => { setMonth(current => { const next = shiftMonth(current, amount); return next.getFullYear() >= 1900 && next.getFullYear() <= 2200 ? next : current; }); setMonthPickerOpen(false); }, []);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (privacyLocked) return;
       if (e.key === 'Escape') {
         if (lightbox) setLightbox(null);
         else if (settingsOpen) setSettingsOpen(false);
@@ -320,7 +319,7 @@ export default function App() {
     };
     const paste = (e: ClipboardEvent) => {
       const target = editorDate || selected;
-      if (!target || settingsOpen || lightbox) return;
+      if (!target || settingsOpen || lightbox || privacyLocked) return;
       const files = Array.from(e.clipboardData?.files || []).filter(file => file.type.startsWith('image/'));
       if (files.length) { e.preventDefault(); void attachFiles(target, files); }
       else if (!e.clipboardData?.getData('text/plain')) { e.preventDefault(); void nativePhotos(target, 'clipboard', true); }
@@ -329,7 +328,7 @@ export default function App() {
     document.addEventListener('keydown', onKey); document.addEventListener('paste', paste);
     document.addEventListener('dragover', preventDrop); document.addEventListener('drop', preventDrop);
     return () => { document.removeEventListener('keydown', onKey); document.removeEventListener('paste', paste); document.removeEventListener('dragover', preventDrop); document.removeEventListener('drop', preventDrop); };
-  }, [lightbox, settingsOpen, monthPickerOpen, editorDate, selected, attachFiles, nativePhotos, navigate, goToday]);
+  }, [lightbox, settingsOpen, monthPickerOpen, editorDate, selected, privacyLocked, attachFiles, nativePhotos, navigate, goToday]);
 
   if (!data) return <div className="loading-shell"><CalendarDays size={32} /><p>{loadError || '불러오는 중…'}</p>{loadError && <button onClick={() => window.location.reload()}>다시 시도</button>}</div>;
   const days = monthDays(month, data.settings.weekStart);
@@ -351,21 +350,21 @@ export default function App() {
     '--date-font': data.settings.fontFamily ? fontStack(data.settings.fontFamily) : "'Cormorant Garamond','Gowun Dodum',serif",
   } as CSSProperties;
 
-  return <main className={`widget theme-${designed ? data.settings.theme : theme.id} mode-${theme.mode} ${data.settings.softFocus ? 'soft-focus' : ''} layout-${theme.layout} ${designed ? 'designed-theme' : ''} ${data.settings.opacity < 15 ? 'transparent-widget' : ''} ${displayedDate ? 'editing' : ''} editor-${editorPanel.phase}`} style={style} onTransitionEnd={editorPanel.onTransitionEnd}>
+  return <main className={`widget theme-${designed ? data.settings.theme : theme.id} mode-${theme.mode} ${privacyLocked ? 'privacy-locked' : ''} ${data.settings.softFocus ? 'soft-focus' : ''} layout-${theme.layout} ${designed ? 'designed-theme' : ''} ${data.settings.opacity < 15 ? 'transparent-widget' : ''} ${displayedDate ? 'editing' : ''} editor-${editorPanel.phase}`} style={style} onTransitionEnd={editorPanel.onTransitionEnd}>
     {editorDate && <button type="button" className="editor-dismiss-layer" aria-label="편집창 바깥" tabIndex={-1} onClick={e => { e.stopPropagation(); setEditorDate(null); }} onDragEnter={e => { if (Array.from(e.dataTransfer.types).includes('Files')) setEditorDate(null); }} />}
     <div className="calendar-layout" ref={editorPanel.layoutRef}>
     <header className="titlebar">
       <div className="brand"><CalendarDays size={15} strokeWidth={1.8} /><span>Photo Calendar</span></div>
-      <div className="window-controls"><IconButton label={data.settings.windowMode === 'desktop' ? '바탕화면 고정 해제' : '바탕화면에 고정'} active={data.settings.windowMode === 'desktop'} onClick={() => void updateSettings({ windowMode: data.settings.windowMode === 'desktop' ? 'normal' : 'desktop' })}><Pin size={14} /></IconButton><span className="control-separator" /><IconButton label="트레이로 숨기기" onClick={() => { window.calendar.minimize(); }}><Minus size={16} /></IconButton><IconButton className="close-window" label="위젯 숨기기 (트레이에서 다시 열기)" onClick={() => { window.calendar.close(); }}><X size={16} /></IconButton></div>
+      <div className="window-controls"><IconButton label={privacyLocked ? '달력 잠금 해제' : '달력 잠금'} active={privacyLocked} onClick={() => void updateSettings({ privacyLocked: !privacyLocked })}>{privacyLocked ? <Lock size={16} /> : <LockOpen size={16} />}</IconButton><IconButton label={data.settings.windowMode === 'desktop' ? '바탕화면 고정 해제' : '바탕화면에 고정'} active={data.settings.windowMode === 'desktop'} onClick={() => void updateSettings({ windowMode: data.settings.windowMode === 'desktop' ? 'normal' : 'desktop' })}><Pin size={14} /></IconButton><span className="control-separator" /><IconButton label="트레이로 숨기기" onClick={() => { window.calendar.minimize(); }}><Minus size={16} /></IconButton><IconButton className="close-window" label="위젯 숨기기 (트레이에서 다시 열기)" onClick={() => { window.calendar.close(); }}><X size={16} /></IconButton></div>
     </header>
-    <div className="month-header">
+    <div className="month-header" inert={privacyLocked} aria-hidden={privacyLocked || undefined}>
       <div className="month-heading"><button className="month-title" title="월 이동" onClick={() => setMonthPickerOpen(open => !open)}><span>{month.getFullYear()}.</span><b>{String(month.getMonth() + 1).padStart(2, '0')}</b>{theme.layout !== 'classic' && <span className="themed-month">{month.toLocaleString('en-US', { month: 'long' })}<small>{month.getFullYear()}</small></span>}</button>
         {monthPickerOpen && <div className="month-picker"><input id="month-jump" aria-label="이동할 월" type="month" min="1900-01" max="2200-12" value={monthPrefix} onChange={e => { if (/^\d{4}-\d{2}$/.test(e.target.value)) { const next = fromKey(e.target.value + '-01'); if (next.getFullYear() >= 1900 && next.getFullYear() <= 2200) { setMonth(next); setMonthPickerOpen(false); } } }} /></div>}
       </div>
-      <div className="navigation"><IconButton label="이전 달" onClick={() => navigate(-1)}><ChevronLeft size={18} /></IconButton><button className="today-button" onClick={goToday}>오늘</button><IconButton label="다음 달" onClick={() => navigate(1)}><ChevronRight size={18} /></IconButton><span className="control-separator" /><ColorPicker scope="calendar" value={background} defaultColor={theme.background} change={backgroundColor => void updateSettings({ backgroundColor })} /><IconButton label={theme.mode === 'light' ? '다크 테마' : '라이트 테마'} onClick={() => void updateSettings({ colorMode: theme.mode === 'light' ? 'dark' : 'light' })}>{theme.mode === 'light' ? <Moon size={17} /> : <Sun size={17} />}</IconButton><IconButton label="위젯 설정" active={settingsOpen} onClick={() => setSettingsOpen(true)}><Settings2 size={18} /></IconButton></div>
+      <div className="navigation"><IconButton label="이전 달" onClick={() => navigate(-1)}><ChevronLeft size={18} /></IconButton><button className="today-button" onClick={goToday}>오늘</button><IconButton label="다음 달" onClick={() => navigate(1)}><ChevronRight size={18} /></IconButton><span className="control-separator" /><ColorPicker scope="calendar" value={background} defaultColor={theme.background} change={backgroundColor => void updateSettings({ backgroundColor })} /><IconButton label="위젯 설정" active={settingsOpen} onClick={() => setSettingsOpen(true)}><SettingsIcon size={18} /></IconButton></div>
     </div>
     <div className="calendar-and-editor">
-      <section className="calendar" aria-label={`${month.getFullYear()}년 ${month.getMonth() + 1}월 달력`}>
+      <section className="calendar" inert={privacyLocked} aria-hidden={privacyLocked || undefined} aria-label={`${month.getFullYear()}년 ${month.getMonth() + 1}월 달력`}>
         <div className="weekdays" role="row">{Array.from({ length: 7 }, (_, i) => (i + data.settings.weekStart) % 7).map(day => <div key={day} className={day === 0 ? 'sunday' : day === 6 ? 'saturday' : ''} role="columnheader">{WEEKDAYS[day]}</div>)}</div>
         <div className="calendar-grid" style={{ gridTemplateRows: `repeat(${days.length / 7}, minmax(calc(54px * var(--font-scale)), 1fr))` }} role="grid">
           {days.map(date => {
@@ -373,7 +372,7 @@ export default function App() {
             const photos = entry.photos;
             const photoSize = entry.photoSize ?? 'medium';
             const free = photos.some(photo => photo.placement || (photo.frame ?? theme.defaultFrame) !== 'none');
-            const photoGrid = photos.length > 0 && <CellPhotos photos={photos} size={photoSize} blur={entry.photoBlur} defaultFrame={theme.defaultFrame} free={free} show={index => setLightbox({ photos, index })} />;
+            const photoGrid = photos.length > 0 && <CellPhotos photos={photos} size={photoSize} disabled={privacyLocked} defaultFrame={theme.defaultFrame} free={free} show={index => { if (!privacyLocked) setLightbox({ photos, index }); }} />;
             const holiday = showHolidays ? [...new Set(holidays.holidays.filter(item => item.date === key).map(item => item.name))].join(' · ') : '';
             return <div key={key} data-date={key} data-holiday={holiday || undefined} role="gridcell" tabIndex={0} aria-label={`${longDate(key)}${isToday ? ', 오늘' : ''}${holiday ? `, ${holiday}` : ''}${photos.length ? `, 사진 ${photos.length}장` : ''}`} aria-selected={selected === key}
               style={entry.color.startsWith('#') ? { backgroundColor: `${entry.color}66` } : undefined}
@@ -396,9 +395,10 @@ export default function App() {
           })}
         </div>
       </section>
-      {displayedDate && <div className="editor-viewport" inert={editorPanel.phase === 'ready' || editorPanel.phase === 'closing'}><DayEditor key={displayedDate} date={displayedDate} entry={data.days[displayedDate] || emptyDay()} defaultFontSize={data.settings.fontSize} defaultFrame={theme.defaultFrame} ready={editorPanel.phase === 'opening' || editorPanel.phase === 'open'} update={updater => updateDay(displayedDate, updater)} close={() => setEditorDate(null)} attach={() => choosePhotos(displayedDate)} paste={() => void nativePhotos(displayedDate, 'clipboard')} drop={files => void attachFiles(displayedDate, files)} showPhoto={(photos, index) => setLightbox({ photos, index })} uploading={uploading > 0} /></div>}
+      {displayedDate && !privacyLocked && <div className="editor-viewport" inert={editorPanel.phase === 'ready' || editorPanel.phase === 'closing'}><DayEditor key={displayedDate} date={displayedDate} entry={data.days[displayedDate] || emptyDay()} defaultFontSize={data.settings.fontSize} defaultFrame={theme.defaultFrame} ready={editorPanel.phase === 'opening' || editorPanel.phase === 'open'} update={updater => updateDay(displayedDate, updater)} close={() => setEditorDate(null)} attach={() => choosePhotos(displayedDate)} paste={() => void nativePhotos(displayedDate, 'clipboard')} drop={files => void attachFiles(displayedDate, files)} showPhoto={(photos, index) => setLightbox({ photos, index })} uploading={uploading > 0} /></div>}
     </div>
     </div>
+    {privacyLocked && <div className="privacy-screen" role="status"><Lock size={28} /><strong>달력이 잠겨 있어요</strong><button onClick={() => void updateSettings({ privacyLocked: false })}>잠금 해제</button></div>}
     {failed && <button className="save-error" onClick={() => { for (const [date, entry] of dirty.current) persistDay(date, entry); }}><RotateCcw size={14} /> 저장 실패 · 재시도</button>}
     <ResizeHandles />
     {settingsOpen && <SettingsModal settings={data.settings} update={updateSettings} close={() => setSettingsOpen(false)} notify={notify} holidays={holidays} refreshHolidays={() => setHolidayRevision(value => value + 1)} restored={next => { replaceData(next); setEditorDate(null); dirty.current.clear(); setFailed(false); }} />}

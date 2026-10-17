@@ -23,7 +23,8 @@ export function useEditorPanel(requestedDate: string | null) {
       frame = requestAnimationFrame(() => { frame = 0; cancelFrame = undefined; resolve(active); });
     });
     const resized = async (width: number) => {
-      while (active && window.innerWidth !== width) if (!await nextFrame()) return false;
+      // Chromium rounds CSS pixels differently from native DIPs at 125/150% DPI.
+      while (active && Math.abs(window.innerWidth - width) > 1) if (!await nextFrame()) return false;
       // Allow the resized native surface to paint before exposing the new area.
       return active && await nextFrame() && await nextFrame();
     };

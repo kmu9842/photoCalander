@@ -46,7 +46,7 @@ try {
   const memo = page.getByRole('textbox', { name: '메모 내용' });
   await memo.press('Control+Home');
   await memo.press('Shift+ArrowRight'); await memo.press('Shift+ArrowRight');
-  await page.getByRole('button', { name: '현재 줄 취소선', exact: true }).click();
+  await memo.getByRole('checkbox', { name: '1번째 줄 완료', exact: true }).click();
   await expect(memo.locator('s')).toHaveText('실행 파일 최종 확인');
   await expect(memo.locator('s')).toHaveCSS('text-decoration-line', 'line-through');
   await expect(page.locator('.day-editor [contenteditable=true]')).toHaveCount(1);
