@@ -12,6 +12,12 @@ afterEach(() => { for (const dir of directories.splice(0)) fs.rmSync(dir, { recu
 const memo = { text: '=회의 준비\n완료 🙂', strikes: [{ from: 7, to: 12 }], textColors: [{ from: 0, to: 6, color: '#ff9595' }], photos: [], color: '#bfdbfe' };
 
 describe('CalendarTask Excel exchange', () => {
+  it.each(['list', 'calendar'])('preserves character sizes in %s Excel exchange', async format => {
+    const styled = { ...memo, textSizes: [{ from: 1, to: 4, size: 23 }, { from: 7, to: 12, size: 32 }] };
+    const reopened = new ExcelJS.Workbook();
+    await reopened.xlsx.load(await exportWorkbook({ '2026-10-29': styled }, format).xlsx.writeBuffer());
+    expect(parseWorkbook(reopened).days['2026-10-29']).toMatchObject(styled);
+  });
   it.each(['list', 'calendar'])('round-trips dates, multiline text, literal formulas, strikes, and colors in %s format', async format => {
     const days = { '2026-10-29': memo, '2027-01-01': { ...memo, text: '새해', strikes: [], textColors: undefined } };
     const workbook = exportWorkbook(days, format);
@@ -45,17 +51,18 @@ describe('CalendarTask Excel exchange', () => {
     const store = new CalendarStore(dir);
     const photo = { id: 'p', name: 'photo.png', file: '00000000-0000-4000-8000-000000000000.png', width: 10, height: 10 };
     fs.writeFileSync(path.join(store.photoDirectory, photo.file), 'image fixture');
-    store.saveDay('2026-10-29', { text: '기존 메모', strikes: [], photos: [photo], color: 'none' });
+    store.saveDay('2026-10-29', { text: '기존 메모', strikes: [], photos: [photo], color: 'none', fontSize: 18, photoBlur: true, photoSize: 'small', textSizes: [{ from: 0, to: 2, size: 20 }] });
     store.saveDay('2026-10-30', { text: '유지', strikes: [], photos: [], color: 'none' });
     const parsed = parseWorkbook(exportWorkbook({ '2026-10-29': memo }, 'list'));
     applyImport(store, parsed, 'merge');
     const merged = store.data.days['2026-10-29'];
     expect(merged.text).toBe('기존 메모\n' + memo.text);
     expect(merged.photos).toEqual([photo]);
+    expect(merged).toMatchObject({ fontSize: 18, photoBlur: true, photoSize: 'small', textSizes: [{ from: 0, to: 2, size: 20 }] });
     applyImport(store, parsed, 'merge');
     expect(store.data.days['2026-10-29']).toEqual(merged);
     applyImport(store, parsed, 'replace');
-    expect(store.data.days['2026-10-29']).toEqual({ ...memo, photos: [photo] });
+    expect(store.data.days['2026-10-29']).toEqual({ ...memo, photos: [photo], fontSize: 18, photoBlur: true, photoSize: 'small' });
     expect(store.data.days['2026-10-30'].text).toBe('유지');
     expect(fs.readdirSync(dir).some(file => file.startsWith('before-excel-'))).toBe(true);
   });

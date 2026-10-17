@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { ArrowDownToLine, ArrowUpFromLine, CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, ClipboardPaste, FolderOpen, ImagePlus, Images, LoaderCircle, Maximize2, Minus, Moon, Palette, Pin, Plus, RotateCcw, Settings2, Strikethrough, Sun, Trash2, X } from 'lucide-react';
 import { dateKey, emptyDay, fromKey, longDate, monthDays, shiftMonth, WEEKDAYS } from './calendar';
-import { MemoEditor, type MemoHandle } from './MemoEditor';
+import { MemoEditor, type MemoFormat, type MemoHandle } from './MemoEditor';
+import { FontSizeSpinner } from './FontSizeSpinner';
 import { AppearanceSettings, fontStack } from './AppearanceSettings';
 import { ExcelSettings } from './ExcelSettings';
-import type { CalendarData, Color, DayEntry, HolidayResult, ImportPhoto, PaletteColor, Photo, ResizeEdge, Settings, StrikeRange, TextColorRange } from './types';
+import type { CalendarData, Color, DayEntry, HolidayResult, ImportPhoto, PaletteColor, Photo, PhotoSize, ResizeEdge, Settings, StrikeRange, TextColorRange, TextSizeRange } from './types';
 
 const COLOR_ROWS = [
   ['#ffffff','#e5e7eb','#9ca3af','#6b7280','#374151','#111827','#000000','#64748b'],
@@ -59,14 +60,15 @@ function IconButton({ label, children, onClick, active = false, className = '', 
   return <button type="button" className={`icon-button ${active ? 'active' : ''} ${className}`} title={label} aria-label={label} onClick={onClick} disabled={disabled}>{children}</button>;
 }
 
-function NoteText({ text, strikes, textColors = [] }: { text: string; strikes: StrikeRange[]; textColors?: TextColorRange[] }) {
+function NoteText({ text, strikes, textColors = [], textSizes = [] }: { text: string; strikes: StrikeRange[]; textColors?: TextColorRange[]; textSizes?: TextSizeRange[] }) {
   const parts: ReactNode[] = [];
-  const boundaries = [...new Set([0, text.length, ...[...strikes, ...textColors].flatMap(range => [range.from, range.to])])].sort((a, b) => a - b);
+  const boundaries = [...new Set([0, text.length, ...[...strikes, ...textColors, ...textSizes].flatMap(range => [range.from, range.to])])].sort((a, b) => a - b);
   for (let i = 0; i < boundaries.length - 1; i++) {
     const from = boundaries[i], to = boundaries[i + 1];
     const color = textColors.find(range => range.from <= from && range.to > from)?.color;
+    const fontSize = textSizes.find(range => range.from <= from && range.to > from)?.size;
     const content = text.slice(from, to);
-    parts.push(<span key={from} style={color ? { color } : undefined}>{strikes.some(range => range.from <= from && range.to > from) ? <s style={color ? { color: 'inherit' } : undefined}>{content}</s> : content}</span>);
+    parts.push(<span key={from} style={{ color, fontSize }}>{strikes.some(range => range.from <= from && range.to > from) ? <s style={color ? { color: 'inherit' } : undefined}>{content}</s> : content}</span>);
   }
   return <>{parts}</>;
 }
@@ -91,18 +93,24 @@ function Modal({ title, children, close, className = '' }: { title: string; chil
   </div>;
 }
 
-function DayEditor({ date, entry, update, close, attach, paste, drop, showPhoto, uploading }: {
-  date: string; entry: DayEntry; update: (updater: (entry: DayEntry) => DayEntry) => void;
+function DayEditor({ date, entry, defaultFontSize, update, close, attach, paste, drop, showPhoto, uploading }: {
+  date: string; entry: DayEntry; defaultFontSize: number; update: (updater: (entry: DayEntry) => DayEntry) => void;
   close: () => void; attach: () => void; paste: () => void; drop: (files: File[]) => void; showPhoto: (photos: Photo[], index: number) => void; uploading: boolean;
 }) {
   const memo = useRef<MemoHandle>(null);
-  const [strikeActive, setStrikeActive] = useState(false);
-  return <aside className="day-editor" aria-label={`${longDate(date)} 기록`} onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }} onDrop={e => { e.preventDefault(); e.stopPropagation(); drop(Array.from(e.dataTransfer.files)); }}>
+  const fontSize = entry.fontSize ?? defaultFontSize;
+  const [format, setFormat] = useState<MemoFormat>({ strike: false, fontSize });
+  return <aside className="day-editor" aria-label={`${longDate(date)} 기록`} style={{ '--memo-font-size': `${fontSize}px` } as CSSProperties} onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }} onDrop={e => { e.preventDefault(); e.stopPropagation(); drop(Array.from(e.dataTransfer.files)); }}>
     <div className="editor-heading"><h2>{longDate(date)}</h2><IconButton label="편집 닫기" onClick={close}><X size={18} /></IconButton></div>
     <div className="editor-body">
-      <div className="editor-tools"><ColorPicker value={entry.color} change={color => update(day => ({ ...day, color }))} /><button className="text-icon-button" title="취소선 · Ctrl+Shift+X" aria-label="선택한 글자 취소선" aria-pressed={strikeActive} onMouseDown={e => e.preventDefault()} onClick={() => memo.current?.toggleStrike()}><Strikethrough size={16} /></button></div>
-      <MemoEditor ref={memo} value={entry} onChange={value => update(day => ({ ...day, ...value, textColors: value.textColors }))} onStrikeChange={setStrikeActive} />
+      <div className="editor-tools"><ColorPicker value={entry.color} change={color => update(day => ({ ...day, color }))} /><button className="strike-button" title="커서가 있는 줄 취소선 · Ctrl+5" aria-label="현재 줄 취소선" aria-keyshortcuts="Control+5" aria-pressed={format.strike} onMouseDown={e => e.preventDefault()} onClick={() => memo.current?.toggleStrike()}><Strikethrough size={18} /><span>줄 취소선</span><kbd>Ctrl+5</kbd></button></div>
+      <div className="memo-formatting">
+        <div className="memo-size-row"><span>날짜 기본 크기</span><FontSizeSpinner label="날짜 기본 글자 크기" value={fontSize} change={fontSize => update(day => ({ ...day, fontSize }))} /><button className="format-reset" disabled={entry.fontSize === undefined} title="전체 글자 크기 설정 따르기" onClick={() => update(day => ({ ...day, fontSize: undefined }))}>전체 설정</button></div>
+        <div className="memo-size-row"><span>선택·입력 글자</span><FontSizeSpinner label="선택 글자 크기" value={format.fontSize} change={size => memo.current?.setFontSize(size)} /><button className="format-reset" title="선택한 글자를 날짜 기본 크기로" onMouseDown={e => e.preventDefault()} onClick={() => memo.current?.setFontSize(null)}>날짜 기본</button></div>
+      </div>
+      <MemoEditor ref={memo} value={entry} fontSize={fontSize} onChange={value => update(day => ({ ...day, ...value, textColors: value.textColors, textSizes: value.textSizes }))} onFormatChange={setFormat} />
       <div className="section-label photos-heading"><span>사진</span><div className="photo-actions"><IconButton label="사진 붙여넣기" disabled={uploading} onClick={paste}><ClipboardPaste size={16} /></IconButton><IconButton label="사진 첨부" disabled={uploading || entry.photos.length >= 20} onClick={attach}>{uploading ? <LoaderCircle className="spin" size={16} /> : <Plus size={17} />}</IconButton></div></div>
+      <div className="photo-settings"><div className="photo-setting-row"><span>달력 사진 블러</span><button role="switch" aria-label="날짜 사진 블러" aria-checked={!!entry.photoBlur} className={`switch ${entry.photoBlur ? 'on' : ''}`} onClick={() => update(day => ({ ...day, photoBlur: !day.photoBlur }))}><span /></button></div><div className="photo-setting-row"><span>칸에서 사진 크기</span><div className="segmented" role="group" aria-label="날짜 사진 크기">{([['large', '대'], ['medium', '중'], ['small', '소']] as [PhotoSize, string][]).map(([size, label]) => <button key={size} aria-pressed={(entry.photoSize ?? 'medium') === size} className={(entry.photoSize ?? 'medium') === size ? 'selected' : ''} onClick={() => update(day => ({ ...day, photoSize: size }))}>{label}</button>)}</div></div></div>
       {entry.photos.length === 0 ? <button className="photo-dropzone" aria-label="파일에서 사진 선택" onClick={attach} disabled={uploading}><ImagePlus size={24} /><span>사진 추가</span></button> : <div className="editor-photos">{entry.photos.map((photo, i) => <div key={photo.id} className="editor-photo"><button onClick={() => showPhoto(entry.photos, i)} aria-label={`${photo.name} 크게 보기`}><img src={photoURL(photo, true)} alt={photo.name} /><span className="photo-zoom"><Maximize2 size={14} /></span></button><button className="delete-photo" aria-label={`${photo.name} 사진 제거`} onClick={() => update(day => ({ ...day, photos: day.photos.filter(p => p.id !== photo.id) }))}><Trash2 size={13} /></button></div>)}</div>}
     </div>
   </aside>;
@@ -115,8 +123,6 @@ function SettingsModal({ settings, update, close, notify, restored, holidays, re
 }) {
   const [busy, setBusy] = useState(false);
   const [opacity, setOpacity] = useState(settings.opacity);
-  const [fontSize, setFontSize] = useState(String(settings.fontSize));
-  useEffect(() => { setFontSize(String(settings.fontSize)); }, [settings.fontSize]);
   const action = async (fn: () => Promise<void>) => { setBusy(true); try { await fn(); } catch (error) { notify(errorText(error)); } finally { setBusy(false); } };
   return <Modal title="위젯 설정" close={close}>
     <div className="modal-heading"><h2>설정</h2><IconButton label="설정 닫기" onClick={close}><X size={19} /></IconButton></div>
@@ -126,10 +132,7 @@ function SettingsModal({ settings, update, close, notify, restored, holidays, re
       <div className="setting-row opacity-setting"><strong>배경 불투명도</strong><output>{opacity}%</output><input aria-label="배경 불투명도" type="range" min={0} max={100} value={opacity} onChange={e => setOpacity(Number(e.target.value))} onPointerUp={() => void update({ opacity })} onKeyUp={() => void update({ opacity })} /></div>
       <div className="setting-row"><strong>표시 위치</strong><select aria-label="위젯 표시 위치" value={settings.windowMode} onChange={e => void update({ windowMode: e.target.value as Settings['windowMode'] })}><option value="desktop">바탕화면 고정</option><option value="normal">일반 위젯</option><option value="top">항상 위에</option></select></div>
       <div className="setting-row"><div><strong>한 주의 시작</strong></div><select aria-label="한 주의 시작" value={settings.weekStart} onChange={e => void update({ weekStart: Number(e.target.value) as 0 | 1 })}><option value={0}>일요일</option><option value={1}>월요일</option></select></div>
-      <div className="setting-row font-size-setting"><div><strong>전체 글자 크기</strong><p>날짜·요일·메모·메뉴에 함께 적용 · 기본 13px</p></div><div className="font-size-spinner"><input type="number" aria-label="전체 글자 크기" min={8} max={48} step={1} value={fontSize} onChange={e => {
-        setFontSize(e.target.value);
-        if (e.target.value !== '' && e.target.validity.valid) void update({ fontSize: e.target.valueAsNumber });
-      }} onBlur={() => setFontSize(String(settings.fontSize))} /><span>px</span></div></div>
+      <div className="setting-row font-size-setting"><div><strong>전체 글자 크기</strong><p>날짜·요일·메모·메뉴에 함께 적용 · 기본 13px</p></div><FontSizeSpinner label="전체 글자 크기" value={settings.fontSize} change={fontSize => void update({ fontSize })} /></div>
       <AppearanceSettings settings={settings} update={update} holidays={holidays} refresh={refreshHolidays} />
       <div className="setting-row"><strong>Windows 시작 시 실행</strong><button role="switch" aria-checked={settings.startAtLogin} aria-label="Windows 시작 시 실행" className={`switch ${settings.startAtLogin ? 'on' : ''}`} onClick={() => void update({ startAtLogin: !settings.startAtLogin })}><span /></button></div>
       <ExcelSettings restored={restored} notify={notify} />
@@ -343,8 +346,8 @@ export default function App() {
               <div className="day-top"><div className="day-date"><span className="date-number">{date.getDate()}</span>{outside && date.getDate() === 1 && <span className="other-month">{date.getMonth() + 1}월</span>}</div><button className="cell-add" aria-label={`${key} 사진 추가`} title="사진 추가" onClick={e => { e.stopPropagation(); choosePhotos(key); }}><ImagePlus size={14} /></button></div>
               <div className={`day-content ${photos.length ? 'has-photos' : ''}`}>
                 {holiday && <div className="holiday-name" title={holiday}>{holiday}</div>}
-                {photos.length > 0 && <div className={`cell-photos count-${Math.min(photos.length, 3)}`}>{photos.slice(0, 3).map((photo, index) => <button key={photo.id} className="cell-photo" onClick={e => { e.stopPropagation(); setLightbox({ photos, index }); }} onDoubleClick={e => e.stopPropagation()} aria-label={`${photo.name} 보기`}><img src={photoURL(photo, true)} alt={photo.name} loading="lazy" draggable={false} />{index === 2 && photos.length > 3 && <span className="more-photos">+{photos.length - 3}</span>}</button>)}</div>}
-                <div className="cell-notes">{entry.text && <div className="note-text"><NoteText text={entry.text} strikes={entry.strikes} textColors={entry.textColors} /></div>}</div>
+                {photos.length > 0 && <div className={`cell-photos photo-size-${entry.photoSize ?? 'medium'} count-${Math.min(photos.length, 3)} ${entry.photoBlur ? 'photo-blurred' : ''}`}>{photos.slice(0, 3).map((photo, index) => <button key={photo.id} className="cell-photo" onClick={e => { e.stopPropagation(); setLightbox({ photos, index }); }} onDoubleClick={e => e.stopPropagation()} aria-label={`${photo.name} 보기`}><img src={photoURL(photo, true)} alt={photo.name} loading="lazy" draggable={false} />{index === 2 && photos.length > 3 && <span className="more-photos">+{photos.length - 3}</span>}</button>)}</div>}
+                <div className="cell-notes">{entry.text && <div className="note-text" style={{ fontSize: entry.fontSize }}><NoteText text={entry.text} strikes={entry.strikes} textColors={entry.textColors} textSizes={entry.textSizes} /></div>}</div>
                 {!entry.text && !photos.length && <button className="cell-placeholder" aria-label={`${key} 메모 작성`} title="메모 작성" onClick={e => { e.stopPropagation(); setSelected(key); setEditorDate(key); }}><Plus size={13} /></button>}
               </div>
               {dropDate === key && <div className="drop-overlay"><ImagePlus size={24} /></div>}
@@ -352,7 +355,7 @@ export default function App() {
           })}
         </div>
       </section>
-      {editorDate && <DayEditor key={editorDate} date={editorDate} entry={data.days[editorDate] || emptyDay()} update={updater => updateDay(editorDate, updater)} close={() => setEditorDate(null)} attach={() => choosePhotos(editorDate)} paste={() => void nativePhotos(editorDate, 'clipboard')} drop={files => void attachFiles(editorDate, files)} showPhoto={(photos, index) => setLightbox({ photos, index })} uploading={uploading > 0} />}
+      {editorDate && <DayEditor key={editorDate} date={editorDate} entry={data.days[editorDate] || emptyDay()} defaultFontSize={data.settings.fontSize} update={updater => updateDay(editorDate, updater)} close={() => setEditorDate(null)} attach={() => choosePhotos(editorDate)} paste={() => void nativePhotos(editorDate, 'clipboard')} drop={files => void attachFiles(editorDate, files)} showPhoto={(photos, index) => setLightbox({ photos, index })} uploading={uploading > 0} />}
     </div>
     </div>
     {failed && <button className="save-error" onClick={() => { for (const [date, entry] of dirty.current) persistDay(date, entry); }}><RotateCcw size={14} /> 저장 실패 · 재시도</button>}

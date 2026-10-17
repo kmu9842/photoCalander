@@ -11,6 +11,21 @@ const text = '한글 기록\n\n여러 줄 취소선';
 const entry = { text, strikes: [{ from: text.indexOf('취소선'), to: text.length }], photos: [], color: 'sage' };
 afterEach(() => { for (const dir of directories.splice(0)) fs.rmSync(dir, { recursive: true, force: true }); });
 describe('durable local calendar storage', () => {
+  it('persists date typography, character sizes and photo preferences through restart and backup', async () => {
+    const store = makeStore();
+    const styled = { ...entry, fontSize: 18, textSizes: [{ from: 0, to: 2, size: 32 }], photoBlur: true, photoSize: 'small' };
+    store.saveDay('2026-10-17', styled);
+    expect(new CalendarStore(store.directory).data.days['2026-10-17']).toEqual(styled);
+    const second = makeStore();
+    await second.restoreBackup(JSON.parse(store.exportBackup()), () => undefined);
+    expect(second.data.days['2026-10-17']).toEqual(styled);
+    store.saveDay('2026-10-18', { text: '', strikes: [], photos: [], color: 'none', fontSize: 20, photoBlur: true, photoSize: 'large' });
+    expect(new CalendarStore(store.directory).data.days['2026-10-18']).toMatchObject({ fontSize: 20, photoBlur: true, photoSize: 'large' });
+    for (const invalid of [{ fontSize: 49 }, { fontSize: 13.5 }, { photoBlur: 'yes' }, { photoSize: 'huge' }, { textSizes: [{ from: 0, to: 2, size: 7 }] }, { textSizes: [{ from: 2, to: 200, size: 20 }] }, { textSizes: [{ from: 0, to: 3, size: 20 }, { from: 2, to: 5, size: 24 }] }]) {
+      expect(() => store.saveDay('2026-10-17', { ...styled, ...invalid })).toThrow();
+    }
+    expect(new CalendarStore(store.directory).data.days['2026-10-17']).toEqual(styled);
+  });
   it('persists expanded typography, borders and country preferences across restart and backup', async () => {
     const store = makeStore();
     store.saveSettings({ ...store.data.settings, fontSize: 48, fontFamily: '맑은 고딕', lineWidth: 3.5, holidayCountry: 'JP', showHolidays: false });

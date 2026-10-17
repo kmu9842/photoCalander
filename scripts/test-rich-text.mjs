@@ -25,7 +25,7 @@ try {
   // Select the original struck word and remove formatting, without changing text.
   await memo.press('Control+Home');
   await memo.press('Control+Shift+ArrowRight');
-  await page.getByRole('button', { name: '선택한 글자 취소선', exact: true }).click();
+  await page.getByRole('button', { name: '현재 줄 취소선', exact: true }).click();
   await expect(memo.locator('s')).toHaveCount(0);
   await expect(memo.locator(':scope > p')).toHaveText(['sfafas', '둘째 문단']);
   await memo.press('Control+z');
@@ -39,9 +39,9 @@ try {
   // A keyboard shortcut uses the same real formatting as the toolbar.
   await memo.press('Control+Home');
   await memo.press('Control+Shift+ArrowRight');
-  await memo.press('Control+Shift+x');
+  await memo.press('Control+5');
   await expect(memo.locator('s')).toHaveCount(0);
-  await memo.press('Control+Shift+x');
+  await memo.press('Control+5');
   await expect(memo.locator('s')).toHaveText('sfafas');
   await expect.poll(() => JSON.parse(fs.readFileSync(path.join(directory, 'calendar.json'), 'utf8')).version).toBe(3);
   await page.getByRole('button', { name: '편집 닫기', exact: true }).click();

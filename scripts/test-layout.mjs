@@ -17,7 +17,9 @@ let app;
 const failures = [];
 const bounds = () => app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].getBounds());
 const launch = async () => {
-  app = await electron.launch({ args: [root], env });
+  app = await electron.launch(process.argv.includes('--packaged')
+    ? { executablePath: path.join(root, 'release/win-unpacked/Photo Calendar.exe'), args: [], env }
+    : { args: [root], env });
   const page = await app.firstWindow();
   page.on('pageerror', error => failures.push(error.message));
   await expect(page.locator('.calendar')).toBeVisible();

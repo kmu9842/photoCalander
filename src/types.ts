@@ -4,7 +4,9 @@ export type ResizeEdge = 'n' | 's' | 'e' | 'w' | 'ne' | 'nw' | 'se' | 'sw';
 export interface Photo { id: string; name: string; file: string; width: number; height: number }
 export interface StrikeRange { from: number; to: number }
 export interface TextColorRange extends StrikeRange { color: `#${string}` }
-export interface DayEntry { text: string; strikes: StrikeRange[]; textColors?: TextColorRange[]; photos: Photo[]; color: Color }
+export interface TextSizeRange extends StrikeRange { size: number }
+export type PhotoSize = 'small' | 'medium' | 'large';
+export interface DayEntry { text: string; strikes: StrikeRange[]; textColors?: TextColorRange[]; textSizes?: TextSizeRange[]; fontSize?: number; photoBlur?: boolean; photoSize?: PhotoSize; photos: Photo[]; color: Color }
 export interface Settings {
   theme: 'light' | 'dark';
   backgroundColor: PaletteColor;

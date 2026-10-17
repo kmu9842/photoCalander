@@ -7,18 +7,18 @@ const { validDate, validateEntry } = require('./store.cjs');
 const WEEKDAYS = ['월요일', '화요일', '수요일', '목요일', '금요일', '토요일', '일요일'];
 const keyOf = date => `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')}`;
 const colorOf = color => typeof color?.argb === 'string' && /^[0-9a-f]{8}$/i.test(color.argb) ? '#' + color.argb.slice(2).toLowerCase() : undefined;
-function pushRange(ranges, from, to, color) {
+function pushRange(ranges, from, to, color, size) {
   if (to <= from) return;
   const previous = ranges.at(-1);
-  if (previous?.to === from && previous.color === color) previous.to = to;
-  else ranges.push({ from, to, ...(color ? { color } : {}) });
+  if (previous?.to === from && previous.color === color && previous.size === size) previous.to = to;
+  else ranges.push({ from, to, ...(color ? { color } : {}), ...(size !== undefined ? { size } : {}) });
 }
 function cellMemo(cell, skip = 0) {
   const value = cell.value;
   if (value && typeof value === 'object' && !Array.isArray(value.richText)) throw new Error(`${cell.address}: 수식 대신 메모 텍스트를 입력해 주세요.`);
   const runs = value?.richText || [{ text: value == null ? '' : String(value), font: cell.font }];
   let text = '';
-  const strikes = [], textColors = [];
+  const strikes = [], textColors = [], textSizes = [];
   for (const run of runs) {
     const part = run.text.replace(/\r\n?/g, '\n');
     const from = text.length;
@@ -27,9 +27,12 @@ function cellMemo(cell, skip = 0) {
     if (font.strike) pushRange(strikes, Math.max(0, from - skip), text.length - skip);
     const color = colorOf(font.color);
     if (color) pushRange(textColors, Math.max(0, from - skip), text.length - skip, color);
+    // Rich-text runs without a size inherit the calendar default, not Excel's implicit 11pt.
+    const pointSize = run.font?.size;
+    if (Number.isFinite(pointSize) && pointSize > 0) pushRange(textSizes, Math.max(0, from - skip), text.length - skip, undefined, Math.max(8, Math.min(48, Math.round(pointSize * 4 / 3))));
   }
   const color = cell.fill?.type === 'pattern' && cell.fill.pattern === 'solid' ? colorOf(cell.fill.fgColor) : undefined;
-  return { text: text.slice(skip), strikes, ...(textColors.length ? { textColors } : {}), photos: [], color: color || 'none' };
+  return { text: text.slice(skip), strikes, ...(textColors.length ? { textColors } : {}), ...(textSizes.length ? { textSizes } : {}), photos: [], color: color || 'none' };
 }
 function dateCell(cell, date1904) {
   const value = cell.value;
@@ -42,11 +45,12 @@ function dateCell(cell, date1904) {
   return null;
 }
 function appendMemo(existing, incoming) {
-  if (!existing?.text) return { ...incoming, photos: existing?.photos || [], color: incoming.color === 'none' ? existing?.color || 'none' : incoming.color };
+  if (!existing?.text) return { ...existing, ...incoming, textSizes: incoming.textSizes, textColors: incoming.textColors, photos: existing?.photos || [], color: incoming.color === 'none' ? existing?.color || 'none' : incoming.color };
   if (!incoming.text || existing.text === incoming.text || existing.text.endsWith('\n' + incoming.text)) return existing;
   const offset = existing.text.length + 1;
   const textColors = [...(existing.textColors || []), ...(incoming.textColors || []).map(range => ({ ...range, from: range.from + offset, to: range.to + offset }))];
-  return { ...existing, text: existing.text + '\n' + incoming.text, strikes: [...existing.strikes, ...incoming.strikes.map(range => ({ from: range.from + offset, to: range.to + offset }))], ...(textColors.length ? { textColors } : {}) };
+  const textSizes = [...(existing.textSizes || []), ...(incoming.textSizes || []).map(range => ({ ...range, from: range.from + offset, to: range.to + offset }))];
+  return { ...existing, text: existing.text + '\n' + incoming.text, strikes: [...existing.strikes, ...incoming.strikes.map(range => ({ from: range.from + offset, to: range.to + offset }))], ...(textColors.length ? { textColors } : {}), ...(textSizes.length ? { textSizes } : {}) };
 }
 async function readWorkbook(filename) {
   if (fs.statSync(filename).size > 50 * 1024 * 1024) throw new Error('엑셀 파일은 50MB 이하로 가져와 주세요.');
@@ -113,13 +117,16 @@ function parseWorkbook(workbook, choices = {}) {
 }
 function richText(entry, prefix = '') {
   const colors = entry.textColors || [];
-  const boundaries = [...new Set([0, entry.text.length, ...[...entry.strikes, ...colors].flatMap(range => [range.from, range.to])])].sort((a, b) => a - b);
+  const sizes = entry.textSizes || [];
+  const boundaries = [...new Set([0, entry.text.length, ...[...entry.strikes, ...colors, ...sizes].flatMap(range => [range.from, range.to])])].sort((a, b) => a - b);
   const runs = prefix ? [{ text: prefix }] : [];
   for (let i = 0; i < boundaries.length - 1; i++) {
     const from = boundaries[i], to = boundaries[i + 1], font = {};
     if (entry.strikes.some(range => range.from <= from && range.to > from)) font.strike = true;
     const color = colors.find(range => range.from <= from && range.to > from)?.color;
     if (color) font.color = { argb: 'FF' + color.slice(1).toUpperCase() };
+    const size = sizes.find(range => range.from <= from && range.to > from)?.size ?? entry.fontSize;
+    if (size !== undefined) font.size = size * 3 / 4;
     runs.push({ text: entry.text.slice(from, to), ...(Object.keys(font).length ? { font } : {}) });
   }
   return { richText: runs.length ? runs : [{ text: '' }] };
@@ -180,7 +187,7 @@ function applyImport(store, parsed, mode) {
   const days = { ...store.data.days };
   for (const [date, entry] of Object.entries(parsed.days)) {
     const existing = days[date];
-    const next = mode === 'merge' ? appendMemo(existing, entry) : { ...entry, photos: existing?.photos || [], color: entry.color === 'none' ? existing?.color || 'none' : entry.color };
+    const next = mode === 'merge' ? appendMemo(existing, entry) : { ...existing, ...entry, textSizes: entry.textSizes, textColors: entry.textColors, photos: existing?.photos || [], color: entry.color === 'none' ? existing?.color || 'none' : entry.color };
     days[date] = validateEntry(next);
   }
   if (!parsed.count) throw new Error('가져올 메모가 없습니다.');

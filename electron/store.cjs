@@ -61,9 +61,25 @@ function validateEntry(value, legacy = false) {
     colorEnd = range.to;
     return { from: range.from, to: range.to, color: range.color };
   });
+  const validSize = size => Number.isInteger(size) && size >= 8 && size <= 48;
+  if (value.fontSize !== undefined && !validSize(value.fontSize)) throw new Error('날짜 글자 크기는 8~48px의 정수여야 합니다.');
+  if (value.photoBlur !== undefined && typeof value.photoBlur !== 'boolean') throw new Error('사진 블러 설정이 올바르지 않습니다.');
+  if (value.photoSize !== undefined && !['small', 'medium', 'large'].includes(value.photoSize)) throw new Error('사진 크기 설정이 올바르지 않습니다.');
+  const textSizes = value.textSizes ?? [];
+  if (!Array.isArray(textSizes) || textSizes.length > text.length) throw new Error('글자 크기 형식이 올바르지 않습니다.');
+  let sizeEnd = 0;
+  const sizes = textSizes.map(range => {
+    if (!range || !Number.isInteger(range.from) || !Number.isInteger(range.to) || range.from < sizeEnd || range.to <= range.from || range.to > text.length || !validSize(range.size)) throw new Error('글자 크기 범위가 올바르지 않습니다.');
+    sizeEnd = range.to;
+    return { from: range.from, to: range.to, size: range.size };
+  });
   return {
     text, strikes,
     ...(colors.length ? { textColors: colors } : {}),
+    ...(sizes.length ? { textSizes: sizes } : {}),
+    ...(value.fontSize !== undefined ? { fontSize: value.fontSize } : {}),
+    ...(value.photoBlur !== undefined ? { photoBlur: value.photoBlur } : {}),
+    ...(value.photoSize !== undefined ? { photoSize: value.photoSize } : {}),
     photos: value.photos.map(p => {
       if (!p || typeof p.id !== 'string' || p.id.length > 100 || ids.has(p.id) || typeof p.name !== 'string' || p.name.length > 300 || !PHOTO_FILE.test(p.file) || !Number.isInteger(p.width) || p.width < 1 || !Number.isInteger(p.height) || p.height < 1) throw new Error('사진 형식이 올바르지 않습니다.');
       ids.add(p.id);
@@ -116,7 +132,7 @@ class CalendarStore {
     const entry = validateEntry(value);
     for (const photo of entry.photos) if (!fs.existsSync(path.join(this.photoDirectory, photo.file))) throw new Error('사진 파일을 찾을 수 없습니다.');
     const days = { ...this.data.days };
-    if (!entry.text.length && !entry.photos.length && entry.color === 'none') delete days[key];
+    if (!entry.text.length && !entry.photos.length && entry.color === 'none' && entry.fontSize === undefined && entry.photoBlur === undefined && entry.photoSize === undefined) delete days[key];
     else days[key] = entry;
     this.commit({ ...this.data, days });
   }

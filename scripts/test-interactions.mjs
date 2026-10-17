@@ -35,9 +35,12 @@ async function assertWholeImage(locator, expectedRatio) {
       left = Math.min(left, x); right = Math.max(right, x); top = Math.min(top, y); bottom = Math.max(bottom, y);
     }
   }
-  assert.ok(red > 3 && blue > 3, `Both original ends must be visible (${red} red, ${blue} blue pixels)`);
-  const ratio = (right - left + 1) / (bottom - top + 1);
-  assert.ok(Math.abs(ratio / expectedRatio - 1) < .18, `Photo ratio ${ratio} should remain ${expectedRatio}`);
+  assert.ok(red > 0 && blue > 0, `Both original ends must be visible (${red} red, ${blue} blue pixels)`);
+  // Small photo allocations can render a portrait only 1–2 pixels wide.
+  // Check the expected contain rectangle with pixel-rounding tolerance.
+  const expectedWidth = Math.min(info.width, info.height * expectedRatio);
+  const expectedHeight = expectedWidth / expectedRatio;
+  assert.ok(Math.abs(right - left + 1 - expectedWidth) <= 2 && Math.abs(bottom - top + 1 - expectedHeight) <= 2, `Photo must fit its original ratio ${expectedRatio} without cropping`);
 }
 try {
   app = await electron.launch(process.argv.includes('--packaged')

@@ -158,3 +158,22 @@
 .editing .calendar-layout{width:calc(100% - 312px)}
 .calendar-and-editor{position:relative}
 .widget .day-editor{position:absolute;top:0;left:100%;width:312px}
+
+.strike-button{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:6px;min-height:34px;padding:7px 10px;border:1px solid var(--text);border-radius:6px;background:var(--panel);color:var(--text);font-size:calc(11px * var(--font-scale,1));font-weight:600}
+.strike-button kbd{font:inherit;font-size:.85em;font-weight:400}
+.strike-button:hover{background:var(--accent-bg)}
+.strike-button[aria-pressed=true]{background:var(--text);color:var(--panel);box-shadow:inset 0 0 0 1px var(--text)}
+.memo-formatting{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
+.memo-size-row,.photo-setting-row{display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap;font-size:calc(10px * var(--font-scale,1))}
+.memo-size-row>span{flex:1}
+.memo-size-row .font-size-spinner input{width:5em;padding:5px}
+.format-reset{padding:5px;border:1px solid var(--line);border-radius:4px;color:var(--sub);font-size:calc(9px * var(--font-scale,1))}
+.format-reset:hover{background:var(--accent-bg)}
+.memo-host .memo-editor{font-size:var(--memo-font-size,var(--font-size,13px))}
+.photo-settings{display:flex;flex-direction:column;gap:8px;margin:6px 0 12px}
+.photo-settings .switch{flex-shrink:0}
+.widget .day-content.has-photos .cell-photos{height:var(--photo-share,60%);max-height:none;min-height:0;flex-shrink:0}
+.cell-photos.photo-size-small{--photo-share:30%}
+.cell-photos.photo-size-medium{--photo-share:60%}
+.cell-photos.photo-size-large{--photo-share:85%}
+.cell-photos.photo-blurred img{filter:blur(6px)}

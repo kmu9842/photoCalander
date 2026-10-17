@@ -16,7 +16,7 @@ export function ExcelSettings({ restored, notify }: { restored: (data: CalendarD
   };
   return <div className="settings-section excel-settings">
     <strong>엑셀 가져오기 · 내보내기</strong>
-    <p>CalendarTask 목록형·달력형 지원. 메모·취소선·글자색·날짜 배경색을 옮깁니다. 사진과 전체 설정은 JSON 백업을 사용하세요.</p>
+    <p>CalendarTask 목록형·달력형 지원. 메모·취소선·글자색·글자 크기·날짜 배경색을 옮깁니다. 사진과 날짜별 표시 설정은 JSON 백업을 사용하세요.</p>
     <div className="excel-actions">
       <button disabled={busy} onClick={() => void action(async () => {
         const result = await window.calendar.openExcel();

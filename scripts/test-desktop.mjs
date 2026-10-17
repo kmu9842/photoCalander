@@ -44,14 +44,14 @@ try {
   await memo.press('Control+Home');
   await memo.press('ArrowRight'); await memo.press('ArrowRight'); await memo.press('ArrowRight');
   await memo.press('Shift+ArrowRight'); await memo.press('Shift+ArrowRight');
-  await page.getByRole('button', { name: '선택한 글자 취소선', exact: true }).click();
+  await page.getByRole('button', { name: '현재 줄 취소선', exact: true }).click();
   await expectMemo(memo, '오전 회의 자료 준비\n두 번째 줄\n\n마지막 줄');
-  await expect(memo.locator('s')).toHaveText('회의');
+  await expect(memo.locator('s')).toHaveText('오전 회의 자료 준비');
   await expect(memo.locator('s')).toHaveCSS('text-decoration-line', 'line-through');
   await memo.press('Control+z');
   await expect(memo.locator('s')).toHaveCount(0);
   await memo.press('Control+y');
-  await expect(memo.locator('s')).toHaveText('회의');
+  await expect(memo.locator('s')).toHaveText('오전 회의 자료 준비');
   await page.getByRole('button', { name: '색상 팔레트', exact: true }).click();
   await page.getByRole('button', { name: '#fdba74 색상', exact: true }).click();
   await expect(cell).toHaveCSS('background-color', 'rgba(253, 186, 116, 0.4)');
@@ -153,7 +153,7 @@ try {
   page = await launch();
   const restored = page.locator(`[data-date="${today}"]`);
   await expect(restored.locator('.note-text')).toHaveText(expectedMemo);
-  await expect(restored.locator('s')).toHaveText('회의');
+  await expect(restored.locator('s')).toHaveText('오전 회의 자료 준비');
   await expect(restored.locator('img')).toHaveCount(3);
   await expect(restored).toHaveCSS('background-color', 'rgba(253, 186, 116, 0.4)');
   await expect(page.locator(`[data-date="${dropDate}"] img`)).toHaveCount(1);
@@ -162,7 +162,7 @@ try {
   await page.getByRole('button', { name: 'test-photo.png 사진 제거', exact: true }).click();
   await expect(restored.locator('img')).toHaveCount(2);
   await expectMemo(page.getByRole('textbox', { name: '메모 내용' }), expectedMemo);
-  await expect(page.getByRole('textbox', { name: '메모 내용' }).locator('s')).toHaveText('회의');
+  await expect(page.getByRole('textbox', { name: '메모 내용' }).locator('s')).toHaveText('오전 회의 자료 준비');
   await page.getByRole('button', { name: '편집 닫기', exact: true }).click();
   await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(800, 580));
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth && document.documentElement.scrollHeight <= window.innerHeight)).toBe(true);

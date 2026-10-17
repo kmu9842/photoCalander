@@ -44,8 +44,8 @@ try {
   const memo = page.getByRole('textbox', { name: '메모 내용' });
   await memo.press('Control+Home');
   await memo.press('Shift+ArrowRight'); await memo.press('Shift+ArrowRight');
-  await page.getByRole('button', { name: '선택한 글자 취소선', exact: true }).click();
-  await expect(memo.locator('s')).toHaveText('실행');
+  await page.getByRole('button', { name: '현재 줄 취소선', exact: true }).click();
+  await expect(memo.locator('s')).toHaveText('실행 파일 최종 확인');
   await expect(memo.locator('s')).toHaveCSS('text-decoration-line', 'line-through');
   await expect(page.locator('.day-editor [contenteditable=true]')).toHaveCount(1);
   await expect(page.locator('.check-button, .note-checkbox, .add-note')).toHaveCount(0);
@@ -55,7 +55,7 @@ try {
   await expect(page.locator('.day-editor')).toHaveCount(0);
   await page.locator('.day-cell.is-today').click({ position: { x: 30, y: 17 } });
   await expect(page.getByRole('textbox', { name: '메모 내용' }).locator(':scope > p')).toHaveText(['실행 파일 최종 확인', '둘째 줄']);
-  await expect(memo.locator('s')).toHaveText('실행');
+  await expect(memo.locator('s')).toHaveText('실행 파일 최종 확인');
   await expect.poll(() => Object.values(JSON.parse(fs.readFileSync(path.join(directory, 'calendar.json'), 'utf8')).days)[0]?.text).toBe('실행 파일 최종 확인\n둘째 줄');
   await expect.poll(() => JSON.parse(fs.readFileSync(path.join(directory, 'calendar.json'), 'utf8')).settings.backgroundColor).toBe('#bfdbfe');
   console.log('PASS: final EXE saves calendar background color at 30% opacity, displays real strikethrough, preserves formatted multiline text, and closes on an outside click.');
