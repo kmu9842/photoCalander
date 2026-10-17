@@ -1,0 +1,73 @@
+import { _electron as electron, expect } from '@playwright/test';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+
+const root = path.resolve(import.meta.dirname, '..');
+const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'photocalendar-background-'));
+const env = { ...process.env, PHOTO_CALENDAR_DATA_DIR: directory, PHOTO_CALENDAR_TEST: '1' };
+delete env.ELECTRON_RUN_AS_NODE;
+delete env.VITE_DEV_SERVER_URL;
+let app;
+try {
+  app = await electron.launch({ args: [root], env });
+  let page = await app.firstWindow();
+  const widget = page.locator('.widget');
+  const toggle = page.locator('.navigation').getByRole('button', { name: '달력 배경색', exact: true });
+  const palette = page.getByRole('group', { name: '달력 배경색 팔레트' });
+  await expect(widget).toHaveCSS('background-color', 'rgba(255, 255, 255, 0.3)');
+  await expect(palette).toHaveCount(0);
+  await toggle.click();
+  await expect(palette.locator('.palette-swatch')).toHaveCount(48);
+  await palette.getByRole('button', { name: '#bfdbfe 색상', exact: true }).click();
+  await expect(palette).toHaveCount(0);
+  await expect(widget).toHaveCSS('background-color', 'rgba(191, 219, 254, 0.3)');
+  await toggle.click();
+  await palette.getByRole('textbox', { name: '색상 코드' }).fill('#A1B2C3');
+  await expect(widget).toHaveCSS('background-color', 'rgba(161, 178, 195, 0.3)');
+  await page.keyboard.press('Escape');
+  await expect(palette).toHaveCount(0);
+  // Native color input changes the same setting; partial hex input stays editable.
+  await toggle.click();
+  await palette.getByRole('textbox', { name: '색상 코드' }).fill('#12');
+  await expect(widget).toHaveCSS('background-color', 'rgba(161, 178, 195, 0.3)');
+  await palette.locator('input[type=color]').fill('#abc123');
+  await expect(widget).toHaveCSS('background-color', 'rgba(171, 193, 35, 0.3)');
+  await page.locator('.weekdays').click();
+  await expect(palette).toHaveCount(0);
+  await page.getByRole('button', { name: '위젯 설정', exact: true }).click();
+  const settings = page.getByRole('dialog', { name: '위젯 설정' });
+  await settings.getByRole('button', { name: '달력 배경색', exact: true }).click();
+  await expect(palette.getByRole('textbox', { name: '색상 코드' })).toHaveValue('#abc123');
+  await palette.getByRole('button', { name: '#bfdbfe 색상', exact: true }).click();
+  await settings.getByRole('button', { name: '설정 닫기', exact: true }).click();
+  await page.getByRole('button', { name: '다크 테마', exact: true }).click();
+  await expect(widget).toHaveClass(/theme-dark/);
+  await expect(widget).toHaveCSS('background-color', 'rgba(191, 219, 254, 0.3)');
+  // Per-day highlights and light-dismiss remain independent of the background.
+  await page.locator('.day-cell.is-today').click({ position: { x: 30, y: 17 } });
+  await page.getByRole('button', { name: '색상 팔레트', exact: true }).click();
+  await page.getByRole('group', { name: '날짜 색상', exact: true }).getByRole('button', { name: '#fdba74 색상', exact: true }).click();
+  await expect(page.locator('.day-cell.is-today')).toHaveCSS('background-color', 'rgba(253, 186, 116, 0.4)');
+  const toggleBox = await toggle.boundingBox();
+  await page.mouse.click(toggleBox.x + toggleBox.width / 2, toggleBox.y + toggleBox.height / 2);
+  await expect(page.locator('.day-editor')).toHaveCount(0);
+  await expect(palette).toHaveCount(0);
+  await expect.poll(async () => (await page.evaluate(() => window.calendar.load())).settings.backgroundColor).toBe('#bfdbfe');
+  await app.close();
+  app = await electron.launch({ args: [root], env });
+  page = await app.firstWindow();
+  await expect(page.locator('.widget')).toHaveCSS('background-color', 'rgba(191, 219, 254, 0.3)');
+  await expect(page.locator('.day-cell.is-today')).toHaveCSS('background-color', 'rgba(253, 186, 116, 0.4)');
+  await page.locator('.navigation').getByRole('button', { name: '달력 배경색', exact: true }).click();
+  await page.getByRole('button', { name: '기본색', exact: true }).click();
+  await expect(page.locator('.widget')).toHaveCSS('background-color', 'rgba(24, 24, 26, 0.3)');
+  await page.getByRole('button', { name: '라이트 테마', exact: true }).click();
+  await expect(page.locator('.widget')).toHaveCSS('background-color', 'rgba(255, 255, 255, 0.3)');
+  await page.locator('.navigation').getByRole('button', { name: '달력 배경색', exact: true }).click();
+  await page.screenshot({ path: path.join(root, 'test-results/calendar-background.png') });
+  console.log('PASS: calendar palette, custom hex/native color, settings access, opacity, restart persistence, reset, independent day color, and outside-click dismissal.');
+} finally {
+  await app?.close().catch(() => {});
+  if (path.dirname(directory) === os.tmpdir() && path.basename(directory).startsWith('photocalendar-background-')) fs.rmSync(directory, { recursive: true, force: true });
+}

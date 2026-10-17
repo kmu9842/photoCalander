@@ -1,0 +1,14 @@
+node_modules/
+dist/
+release/
+delivery/
+test-results/
+.env
+.env.*
+!.env.example
+calendar.json
+calendar.json.*
+photos/
+*.log
+*.tsbuildinfo
+.DS_Store

@@ -1,0 +1,57 @@
+import { _electron as electron, expect } from '@playwright/test';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import koffi from 'koffi';
+const root = path.resolve(import.meta.dirname, '..');
+const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'photocalendar-picker-'));
+const env = { ...process.env, PHOTO_CALENDAR_DATA_DIR: directory, PHOTO_CALENDAR_TEST: '1' };
+delete env.ELECTRON_RUN_AS_NODE;
+delete env.VITE_DEV_SERVER_URL;
+const user32 = koffi.load('user32.dll');
+const find = user32.func('intptr_t __stdcall FindWindowW(str16 className, str16 title)');
+const post = user32.func('int __stdcall PostMessageW(intptr_t hwnd, uint32_t message, uintptr_t wParam, intptr_t lParam)');
+let app;
+try {
+  app = await electron.launch({ args: [root], env });
+  const page = await app.firstWindow();
+  await page.locator('.day-cell.is-today').click({ position: { x: 30, y: 17 } });
+  await page.getByRole('button', { name: '사진 첨부', exact: true }).click();
+  await expect.poll(() => Number(find('#32770', '사진 선택')), { timeout: 10000 }).toBeGreaterThan(0);
+  const dialog = find('#32770', '사진 선택');
+  await expect(page.locator('.day-editor')).toBeVisible();
+  post(dialog, 0x0010, 0, 0);
+  await expect.poll(() => Number(find('#32770', '사진 선택'))).toBe(0);
+  await expect(page.getByRole('button', { name: '사진 첨부', exact: true })).toBeEnabled();
+  await expect(page.locator('.day-editor')).toBeVisible();
+  await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].focus());
+  await expect.poll(() => app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].isFocused())).toBe(true);
+  await page.getByRole('button', { name: '색상 팔레트', exact: true }).click();
+  const customColor = page.getByLabel('직접 색상 선택', { exact: true });
+  await customColor.click();
+  // The picker consumes keyboard input while the editor remains mounted.
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.day-editor')).toBeVisible();
+  await page.getByRole('button', { name: '색상 팔레트', exact: true }).click();
+  await page.getByRole('button', { name: '편집 닫기', exact: true }).click();
+  await page.getByRole('button', { name: '바탕화면에 고정', exact: true }).click();
+  await expect(page.getByRole('button', { name: '바탕화면 고정 해제', exact: true })).toBeVisible();
+  await page.locator('.day-cell.is-today').click({ position: { x: 30, y: 17 } });
+  await page.getByRole('button', { name: '사진 첨부', exact: true }).click();
+  await expect.poll(() => Number(find('#32770', '사진 선택'))).toBeGreaterThan(0);
+  await expect(page.locator('.day-editor')).toBeVisible();
+  post(find('#32770', '사진 선택'), 0x0010, 0, 0);
+  await expect.poll(() => Number(find('#32770', '사진 선택'))).toBe(0);
+  await expect(page.getByRole('button', { name: '사진 첨부', exact: true })).toBeEnabled();
+  await expect(page.locator('.day-editor')).toBeVisible();
+  await page.getByRole('button', { name: '편집 닫기', exact: true }).click();
+  await page.getByRole('button', { name: '바탕화면 고정 해제', exact: true }).click();
+  await page.screenshot({ path: path.join(root, 'test-results/widget-white-30.png'), omitBackground: true });
+  console.log('PASS: actual Windows file picker and Chromium color picker keep the editor open.');
+} finally {
+  const dialog = find('#32770', '사진 선택');
+  if (dialog) post(dialog, 0x0010, 0, 0);
+  if (app) await app.close().catch(() => {});
+  if (path.dirname(directory) === os.tmpdir() && path.basename(directory).startsWith('photocalendar-picker-')) fs.rmSync(directory, { recursive: true, force: true });
+}
