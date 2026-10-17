@@ -50,6 +50,9 @@ try {
   const today = page.locator('.day-cell.is-today');
   const editor = page.locator('.day-editor');
   const clickOutside = async (locator, x = 30, y = 17) => {
+    // A visible editor may still be the outgoing panel. Wait for the requested
+    // open to finish before testing dismissal; rapid reversals have their own test.
+    await expect(page.locator('.widget')).toHaveClass(/editor-open\b/);
     const box = await locator.boundingBox();
     // Use the user's actual coordinates; the dismiss layer must consume this click.
     await page.mouse.click(box.x + Math.min(x, box.width / 2), box.y + Math.min(y, box.height / 2));

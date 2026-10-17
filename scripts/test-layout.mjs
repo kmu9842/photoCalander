@@ -54,6 +54,10 @@ try {
       if (frame.opacity !== null) assert.equal(frame.opacity, 1, 'Editor must slide without fading or flashing');
     }
     if (!reducedMotion) {
+      if (!frames.some(frame => frame.slide < -1 && frame.slide > -311)) {
+        fs.mkdirSync(path.join(root, 'test-results'), { recursive: true });
+        fs.writeFileSync(path.join(root, 'test-results/slide-frames.json'), JSON.stringify(frames, null, 2));
+      }
       assert.ok(frames.some(frame => frame.width > baseWidth + 1 && frame.width < baseWidth + 311), 'Surface expands/collapses through intermediate widths');
       assert.ok(frames.some(frame => frame.slide < -1 && frame.slide > -311), 'Editor slides through intermediate positions');
     }

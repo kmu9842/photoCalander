@@ -6,7 +6,7 @@
 
 [최신 배포본 다운로드](https://github.com/kmu9842/photoCalander/releases/latest)
 
-`PhotoCalendar-1.3.0-Windows.exe` 하나만 다운로드하여 실행합니다. Windows x64용이며, 설치나 별도의 Node.js·DLL 파일이 필요하지 않습니다. 첫 실행에는 내부 파일을 푸는 시간이 걸릴 수 있습니다.
+`PhotoCalendar-1.3.1-Windows.exe` 하나만 다운로드하여 실행합니다. Windows x64용이며, 설치나 별도의 Node.js·DLL 파일이 필요하지 않습니다. 첫 실행에는 내부 파일을 푸는 시간이 걸릴 수 있습니다.
 
 기본 배경은 흰색, 불투명도는 30%입니다. 창 상단을 드래그하여 이동하고 가장자리와 모서리로 크기를 조절합니다.
 
@@ -46,6 +46,7 @@ npm.cmd run build
 npm.cmd run test:desktop
 npm.cmd run test:interactions
 npm.cmd run test:layout
+npm.cmd run test:editor-size
 npm.cmd run test:formatting
 npm.cmd run test:photos
 npm.cmd run test:calendar-import
@@ -64,6 +65,6 @@ npm.cmd run package
 node scripts/test-portable.mjs
 ```
 
-배포할 파일은 `release/PhotoCalendar-1.3.0-Windows.exe` 하나입니다. `win-unpacked`, 소스, 개발 의존성, 테스트 결과는 함께 배포할 필요가 없습니다.
+배포할 파일은 `release/PhotoCalendar-1.3.1-Windows.exe` 하나입니다. `win-unpacked`, 소스, 개발 의존성, 테스트 결과는 함께 배포할 필요가 없습니다.
 
 DesktopCal의 날짜별 기록 방식을 참고한 독립 앱이며, DesktopCal 계정 연동이나 클라우드 동기화는 포함하지 않습니다.

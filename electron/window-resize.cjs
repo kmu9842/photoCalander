@@ -11,13 +11,19 @@ class WindowResizer {
   constructor(window, saveBounds) { this.window = window; this.saveBounds = saveBounds; this.active = null; }
   begin(edge, x, y) {
     if (!EDGES.has(edge) || !Number.isFinite(x) || !Number.isFinite(y)) return;
-    this.active = { edge, x, y, bounds: this.window.getBounds() };
+    const bounds = this.window.getBounds();
+    this.active = { edge, x, y, bounds, lastBounds: { ...bounds } };
   }
   move(x, y) {
     if (!this.active || !Number.isFinite(x) || !Number.isFinite(y)) return;
     const state = this.active;
+    // Opening/closing the editor can resize or move the native window while a
+    // pointer is captured. Rebase the drag instead of resurrecting its old size.
+    const current = this.window.getBounds();
+    for (const key of ['x', 'y', 'width', 'height']) state.bounds[key] += current[key] - state.lastBounds[key];
     const [width, height] = this.window.getMinimumSize();
     this.window.setBounds(resizedBounds(state.bounds, state.edge, x - state.x, y - state.y, { width, height }));
+    state.lastBounds = this.window.getBounds();
   }
   end() { if (this.active) { this.active = null; this.saveBounds(); } }
 }
