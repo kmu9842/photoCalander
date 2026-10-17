@@ -38,11 +38,10 @@
 .framed-image{display:block;position:relative;width:100%;height:100%;filter:drop-shadow(0 2px 2px #0003)}
 .framed-image.frame-none{display:contents;filter:none}
 .framed-image .photo-image{object-fit:var(--image-fit,cover)!important;object-position:var(--image-position,50% 50%)!important}
-.framed-image:not(.frame-none) .photo-image{position:absolute;left:7%;top:5%;width:87%;height:75%;border-radius:0}
+.framed-image:not(.frame-none) .photo-image{position:absolute;left:var(--photo-left);top:var(--photo-top);width:var(--photo-width);height:var(--photo-height);border-radius:0}
 .frame-art{position:absolute;inset:0;pointer-events:none;background-image:var(--frame-image);background-size:var(--frame-scale);background-position:center;mask-image:var(--frame-image);mask-size:var(--frame-scale);mask-position:center;mask-mode:luminance;mask-repeat:no-repeat}
-.frame-polaroid{--frame-image:url('/assets/polaroid-frame.jpg');--frame-scale:118% 114%}
-.frame-stamp{--frame-image:url('/assets/stamp-frame-v2.jpg');--frame-scale:111% 111%}
-.frame-stamp .photo-image{left:12%;top:10%;width:76%;height:80%}
+.frame-polaroid{--frame-image:url('/assets/polaroid-frame.jpg');--frame-scale:118% 114%;--photo-left:7%;--photo-top:5%;--photo-width:87%;--photo-height:75%}
+.frame-stamp{--frame-image:url('/assets/stamp-frame-v2.jpg');--frame-scale:111% 111%;--photo-left:12%;--photo-top:10%;--photo-width:76%;--photo-height:80%}
 .framed-image.image-blurred .photo-image{filter:blur(6px)}
 .small-photo-rotation{display:block;width:100%;height:100%}
 .widget .cell-photos.is-positioned{position:absolute;min-height:0;max-height:none;margin:0;overflow:visible;z-index:1;border-radius:0}

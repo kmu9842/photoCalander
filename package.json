@@ -1,7 +1,7 @@
 {
   "name": "photo-calendar",
   "productName": "Photo Calendar",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "사진과 메모를 담는 Windows 바탕화면 달력 위젯",
   "author": "Photo Calendar",
   "private": true,

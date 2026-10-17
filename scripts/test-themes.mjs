@@ -95,11 +95,41 @@ try {
   await expect(rotation).toBeDisabled();
   const full = await cell.locator('.cell-photos').boundingBox();
   assert.ok(Math.abs(full.width - outer.width) <= 1 && Math.abs(full.height - outer.height) <= 1, 'Large framed photos fill the date');
+  // Measure the actual black opening in each generated frame, independently
+  // of the photo inset rules, so a gap at any edge fails this regression check.
+  for (const [frame, file] of [['stamp', 'stamp-frame-v2.jpg'], ['polaroid', 'polaroid-frame.jpg']]) {
+    const { data: pixels, info } = await sharp(path.join(root, 'public/assets', file)).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+    const dark = (x, y) => pixels[(y * info.width + x) * info.channels] < 24;
+    const cx = Math.floor(info.width / 2), cy = Math.floor(info.height / 2);
+    let left = cx, right = cx, top = cy, bottom = cy;
+    while (left > 0 && dark(left - 1, cy)) left--;
+    while (right < info.width - 1 && dark(right + 1, cy)) right++;
+    while (top > 0 && dark(cx, top - 1)) top--;
+    while (bottom < info.height - 1 && dark(cx, bottom + 1)) bottom++;
+    const framed = cell.locator(`.frame-${frame}`), art = framed.locator('.frame-art');
+    const bounds = await art.boundingBox(), picture = await framed.locator('.photo-image').boundingBox();
+    const scale = await art.evaluate(el => getComputedStyle(el).backgroundSize.split(' ').map(value => parseFloat(value) / 100));
+    const mapX = x => bounds.x + bounds.width * ((1 - scale[0]) / 2 + x / info.width * scale[0]);
+    const mapY = y => bounds.y + bounds.height * ((1 - scale[1]) / 2 + y / info.height * scale[1]);
+    assert.ok(picture.x <= mapX(left) + .5 && picture.y <= mapY(top) + .5 && picture.x + picture.width >= mapX(right) - .5 && picture.y + picture.height >= mapY(bottom) - .5, `${frame}: photo must cover every edge of the actual frame opening`);
+  }
+  await cell.screenshot({ path: path.join(root, 'test-results/large-frame-fitting.png') });
   await x.focus(); await x.press('End');
   await expect.poll(async () => (await data()).days[date].photos[0].placement.x).toBe(100);
   await expect(cell.locator('.photo-image').first()).toHaveCSS('object-fit', 'cover');
   const cropPosition = await cell.locator('.photo-image').first().evaluate(el => getComputedStyle(el).objectPosition);
   assert.ok(cropPosition.startsWith('100%'), 'Large-photo placement moves the image crop');
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.widget')).toHaveClass(/editor-closed\b/);
+  const largePhoto = await cell.locator('.cell-photo').first().boundingBox();
+  await page.mouse.click(largePhoto.x + 4, largePhoto.y + largePhoto.height - 8);
+  await expect(page.locator('.widget')).toHaveClass(/editor-open\b/);
+  await expect(page.getByRole('dialog', { name: '사진 크게 보기' })).toHaveCount(0);
+  await page.getByRole('textbox', { name: '메모 내용', exact: true }).fill('대 사진에서도 일정 수정');
+  await expect.poll(async () => (await data()).days[date].text).toBe('대 사진에서도 일정 수정');
+  await page.locator('.day-editor .editor-photo>button').first().click();
+  await expect(page.getByRole('dialog', { name: '사진 크게 보기' })).toBeVisible();
+  await page.keyboard.press('Escape');
   await page.getByRole('group', { name: '날짜 사진 크기' }).getByRole('button', { name: '소', exact: true }).click();
   await page.keyboard.press('Escape');
   await expect(page.locator('.widget')).toHaveClass(/editor-closed\b/);

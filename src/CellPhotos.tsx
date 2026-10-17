@@ -105,7 +105,7 @@ export function CellPhotos({ photos, size, blur, show, defaultFrame = 'none', fr
   if (size === 'small') return <SmallPhoto photos={photos} size={size} blur={blur} show={show} defaultFrame={defaultFrame} free={free} />;
   if (free && size === 'medium') return <PositionedPhotos photos={photos} size={size} blur={blur} show={show} defaultFrame={defaultFrame} />;
   return <div ref={ref} data-text-tone={tone} className={`cell-photos photo-size-${size} count-${Math.min(photos.length, 3)} ${blur ? 'photo-blurred' : ''}`}>
-    {photos.slice(0, 3).map((photo, index) => <button key={photo.id} className="cell-photo" onClick={event => { event.stopPropagation(); show(index); }} onDoubleClick={event => event.stopPropagation()} aria-label={`${photo.name} 보기`}>
+    {photos.slice(0, 3).map((photo, index) => <button key={photo.id} className="cell-photo" onClick={event => { if (size === 'large') return; event.stopPropagation(); show(index); }} onDoubleClick={event => event.stopPropagation()} aria-label={`${photo.name} ${size === 'large' ? '날짜 일정 편집' : '보기'}`}>
       <PhotoFrameImage src={`photo://local/${photo.file}?thumb=1`} alt={photo.name} frame={photo.frame ?? defaultFrame} position={size === 'large' && photo.placement ? `${photo.placement.x}% ${photo.placement.y}%` : undefined} fit={size === 'large' ? 'cover' : 'contain'} />
       {index === 2 && photos.length > 3 && <span className="more-photos">+{photos.length - 3}</span>}
     </button>)}

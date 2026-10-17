@@ -117,6 +117,7 @@ try {
   assert.ok(Math.abs(imageBox.width / imageBox.height - 5) < .02, 'Image element itself follows the original ratio');
   const arrangementToggle = await editor.locator('.photo-arrange-toggle').boundingBox();
   assert.ok(editorBox.y + editorBox.height - arrangementToggle.y - arrangementToggle.height <= 9, 'Editor ends immediately after the photo arrangement control');
+  // The editor stays opaque while the space below follows calendar opacity.
   // Read compositor alpha at empty points, not just a CSS declaration.
   const emptyPoints = [
     { x: editorBox.x + 5, y: editorBox.y + editorBox.height - 4 },
@@ -142,7 +143,7 @@ try {
     await expect(opacitySlider).toHaveValue(String(opacity));
     await settingsDialog.getByRole('button', { name: '설정 닫기', exact: true }).click();
     await expect(editor).toBeVisible();
-    await expect.poll(sampleAlpha).toEqual([Math.round(255 * opacity / 100), Math.round(255 * opacity / 100)]);
+    await expect.poll(sampleAlpha).toEqual([255, Math.round(255 * opacity / 100)]);
   }
   await page.screenshot({ path: path.join(root, 'test-results/photo-spacing-transparency.png'), omitBackground: true });
   // The space below the compact panel is outside it and must dismiss editing.
@@ -163,7 +164,7 @@ try {
   await assertWholeImage(page.locator('.lightbox-image img'), .2);
   await page.keyboard.press('Escape');
   await expect(editor).toBeVisible();
-  await expect(editor).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+  await expect(editor).toHaveCSS('background-color', 'rgb(255, 255, 255)');
   const stored = JSON.parse(fs.readFileSync(path.join(directory, 'calendar.json'), 'utf8'));
   const savedPhoto = await sharp(fs.readFileSync(path.join(directory, 'photos', stored.days[date].photos[0].file))).metadata();
   assert.equal(savedPhoto.format, 'webp', 'Photo is stored as an optimized WebP copy');
@@ -190,7 +191,7 @@ try {
   });
   await expect(editor).toHaveCount(0);
   await app.evaluate(() => { globalThis.__outsideTestWindow.destroy(); delete globalThis.__outsideTestWindow; });
-  console.log('PASS: photo-height editor with no reserved bottom space, real 0/30/60% background alpha, outside dismissal, uncropped landscape/portrait photos, compact scrolling, optimized photo storage.');
+  console.log('PASS: opaque editor at 0/30/60% calendar alpha, photo-height editor with no reserved bottom space, outside dismissal, uncropped landscape/portrait photos, compact scrolling, optimized photo storage.');
 } catch (error) {
   if (app) await (await app.firstWindow()).screenshot({ path: path.join(root, 'test-results/interactions-failure.png') }).catch(() => {});
   throw error;

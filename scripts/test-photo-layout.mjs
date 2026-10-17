@@ -103,8 +103,13 @@ try {
   await page.keyboard.press('Escape');
   await expect(popup).toHaveCount(0);
   await cell(15).locator('.cell-photo').click({ position: { x: 4, y: 80 } });
+  await expect(page.locator('.widget')).toHaveClass(/editor-open\b/);
+  await expect(page.getByRole('dialog', { name: '사진 크게 보기' })).toHaveCount(0);
+  await page.locator('.day-editor .editor-photo>button').first().click();
   await expect(page.locator('.lightbox-image img')).toHaveCSS('object-fit', 'contain');
   await page.keyboard.press('Escape');
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.widget')).toHaveClass(/editor-closed\b/);
 
   for (const [width, height] of [[800, 580], [1250, 820]]) {
     await app.evaluate(({ BrowserWindow }, bounds) => BrowserWindow.getAllWindows()[0].setBounds(bounds), { width, height });
