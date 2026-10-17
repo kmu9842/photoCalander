@@ -9,6 +9,10 @@ const sharp = require('sharp');
 const { WindowResizer } = require('./window-resize.cjs');
 const { clipboardFiles } = require('./clipboard-files.cjs');
 const { observeOutsideFocus } = require('./outside-focus.cjs');
+const { prepareImage } = require('./images.cjs');
+const { installedFonts } = require('./system-info.cjs');
+const { HolidayService } = require('./holidays.cjs');
+const { readWorkbook, parseWorkbook, exportWorkbook, applyImport } = require('./excel.cjs');
 
 if (process.env.PHOTO_CALENDAR_DATA_DIR) app.setPath('userData', process.env.PHOTO_CALENDAR_DATA_DIR);
 else app.setPath('userData', path.join(app.getPath('appData'), 'PhotoCalendar'));
@@ -25,24 +29,6 @@ async function withNativeDialog(action) {
 const testMode = process.env.PHOTO_CALENDAR_TEST === '1';
 const devURL = !app.isPackaged && process.env.VITE_DEV_SERVER_URL;
 
-async function imageInfo(bytes) {
-  if (!bytes.length || bytes.length > 30 * 1024 * 1024) throw new Error('사진은 한 장당 30MB 이하로 첨부해 주세요.');
-  let ext;
-  if (bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))) ext = 'png';
-  else if (bytes[0] === 255 && bytes[1] === 216 && bytes[2] === 255) ext = 'jpg';
-  else if (bytes.toString('ascii', 0, 4) === 'RIFF' && bytes.toString('ascii', 8, 12) === 'WEBP') ext = 'webp';
-  else if (['GIF87a', 'GIF89a'].includes(bytes.toString('ascii', 0, 6))) ext = 'gif';
-  else throw new Error('PNG, JPG, WEBP, GIF 사진만 첨부할 수 있습니다.');
-  try {
-    const image = sharp(bytes, { limitInputPixels: 80000000 });
-    const metadata = await image.metadata();
-    const rotated = [5, 6, 7, 8].includes(metadata.orientation);
-    const width = rotated ? metadata.height : metadata.width;
-    const height = rotated ? metadata.width : metadata.height;
-    const thumbnail = await image.rotate().resize({ width: 560, withoutEnlargement: true }).jpeg({ quality: 82 }).toBuffer();
-    return { thumbnail, width, height, ext };
-  } catch { throw new Error('사진을 읽을 수 없습니다. 손상되지 않은 8천만 화소 이하의 사진을 선택해 주세요.'); }
-}
 function checkSender(event) {
   if (!window || event.sender !== window.webContents || event.senderFrame !== window.webContents.mainFrame) throw new Error('허용되지 않은 요청입니다.');
 }
@@ -188,15 +174,51 @@ else {
       return net.fetch(pathToFileURL(file).toString());
     });
     handle('calendar:load', () => store.data);
+    let excelPending;
+    const excelPreview = (token, choices = {}) => {
+      if (!excelPending || token !== excelPending.token) throw new Error('엑셀 파일을 다시 선택해 주세요.');
+      const parsed = parseWorkbook(excelPending.workbook, choices);
+      const { days, ...summary } = parsed;
+      return { ...summary, token, filename: excelPending.filename, sample: Object.entries(days).sort(([a], [b]) => a.localeCompare(b)).slice(0, 5).map(([date, entry]) => ({ date, text: entry.text.slice(0, 180) })) };
+    };
+    handle('calendar:excel-open', () => withNativeDialog(async () => {
+      const result = await dialog.showOpenDialog(window, { title: 'CalendarTask 엑셀 가져오기', properties: ['openFile'], filters: [{ name: 'Excel 통합 문서', extensions: ['xlsx'] }] });
+      if (result.canceled) return null;
+      const workbook = await readWorkbook(result.filePaths[0]);
+      excelPending = { workbook, token: randomUUID(), filename: path.basename(result.filePaths[0]) };
+      return excelPreview(excelPending.token);
+    }));
+    handle('calendar:excel-preview', excelPreview);
+    handle('calendar:excel-import', (token, choices, mode) => {
+      if (!excelPending || token !== excelPending.token) throw new Error('엑셀 파일을 다시 선택해 주세요.');
+      const result = applyImport(store, parseWorkbook(excelPending.workbook, choices), mode);
+      excelPending = undefined;
+      return result;
+    });
+    handle('calendar:excel-export', format => withNativeDialog(async () => {
+      const workbook = exportWorkbook(store.data.days, format);
+      const result = await dialog.showSaveDialog(window, { title: 'CalendarTask 형식으로 내보내기', defaultPath: path.join(app.getPath('documents'), `calendar-${new Date().toISOString().slice(0, 10)}-${format === 'calendar' ? '달력' : '목록'}.xlsx`), filters: [{ name: 'Excel 통합 문서', extensions: ['xlsx'] }] });
+      if (result.canceled || !result.filePath) return false;
+      const bytes = await workbook.xlsx.writeBuffer();
+      const temporary = result.filePath + '.' + randomUUID() + '.tmp';
+      fs.writeFileSync(temporary, Buffer.from(bytes));
+      fs.renameSync(temporary, result.filePath);
+      return true;
+    }));
+    const holidays = new HolidayService(store.directory);
+    handle('calendar:fonts', installedFonts);
+    handle('calendar:country', () => app.getLocaleCountryCode());
+    handle('calendar:holiday-countries', () => holidays.countries());
+    handle('calendar:holidays', (years, country) => holidays.holidays(years, country === 'auto' ? app.getLocaleCountryCode() : country));
     handle('calendar:save-day', (date, entry) => store.saveDay(date, entry));
     async function importPhotoBuffers(files) {
       if (!Array.isArray(files) || files.length > 20) throw new Error('사진은 한 번에 20장까지 첨부할 수 있습니다.');
       // Validate the entire batch before writing any files.
-      const decoded = await Promise.all(files.map(async file => {
-        if (!file || typeof file.name !== 'string' || !(file.bytes instanceof ArrayBuffer || Buffer.isBuffer(file.bytes))) throw new Error('사진 데이터가 올바르지 않습니다.');
-        const bytes = Buffer.from(file.bytes);
-        return { name: file.name.slice(0, 300), bytes, ...await imageInfo(bytes) };
-      }));
+      const decoded = [];
+      for (const file of files) {
+        if (!file || typeof file.name !== 'string' || !(typeof file.path === 'string' && path.isAbsolute(file.path) || file.bytes instanceof ArrayBuffer || Buffer.isBuffer(file.bytes))) throw new Error('사진 데이터가 올바르지 않습니다.');
+        decoded.push({ name: file.name.slice(0, 300), ...await prepareImage(typeof file.path === 'string' ? file.path : Buffer.from(file.bytes)) });
+      }
       return decoded.map(({ name, bytes, width, height, ext, thumbnail }) => {
         const id = randomUUID(), file = id + '.' + ext;
         fs.writeFileSync(path.join(store.photoDirectory, file), bytes, { flag: 'wx' });
@@ -204,15 +226,20 @@ else {
         return { id, name, file, width, height };
       });
     }
-    handle('calendar:import-photos', importPhotoBuffers);
+    let imageQueue = Promise.resolve();
+    function importPhotos(files) {
+      const result = imageQueue.then(() => importPhotoBuffers(files));
+      imageQueue = result.catch(() => {});
+      return result;
+    }
+    handle('calendar:import-photos', importPhotos);
     async function importPhotoPaths(paths) {
       const photos = [];
       for (const file of paths) {
         if (!/\.(png|jpe?g|webp|gif)$/i.test(file)) continue;
-        if (fs.statSync(file).size > 30 * 1024 * 1024) throw new Error('사진은 한 장당 30MB 이하로 첨부해 주세요.');
-        photos.push({ name: path.basename(file), bytes: fs.readFileSync(file) });
+        photos.push({ name: path.basename(file), path: file });
       }
-      return importPhotoBuffers(photos);
+      return importPhotos(photos);
     }
     handle('calendar:pick-photos', () => withNativeDialog(async () => {
       const wasAttached = host.attached;
@@ -232,7 +259,7 @@ else {
         const type = item.types.find(type => ['image/png', 'image/jpeg', 'image/webp', 'image/gif'].includes(type));
         if (!type) continue;
         const blob = await item.getType(type);
-        return importPhotoBuffers([{ name: `붙여넣은 이미지.${type.split('/')[1]}`, bytes: Buffer.from(await blob.arrayBuffer()) }]);
+        return importPhotos([{ name: `붙여넣은 이미지.${type.split('/')[1]}`, bytes: Buffer.from(await blob.arrayBuffer()) }]);
       }
       return [];
     });
@@ -263,7 +290,7 @@ else {
       const raw = JSON.parse(fs.readFileSync(result.filePaths[0], 'utf8'));
       const answer = await dialog.showMessageBox(window, { type: 'question', title: '백업 불러오기', message: '현재 달력을 백업의 기록으로 바꿀까요?', detail: '현재 기록과 사진은 데이터 폴더에 별도 백업한 뒤 불러옵니다.', buttons: ['취소', '불러오기'], defaultId: 0, cancelId: 0 });
       if (answer.response !== 1) return null;
-      return store.restoreBackup(raw, imageInfo);
+      return store.restoreBackup(raw, prepareImage);
     }));
     handle('calendar:folder', () => shell.openPath(store.directory));
     ipcMain.on('window:resize-begin', (event, edge, x, y) => { checkSender(event); resizer?.begin(edge, x, y); });

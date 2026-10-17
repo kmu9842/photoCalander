@@ -5,6 +5,15 @@ import { history, undo, redo } from 'prosemirror-history';
 import { memoDocument, memoSchema, readMemo } from './memo';
 
 describe('memo formatting', () => {
+  it('preserves imported Excel text colors when editing and toggling strikes', () => {
+    const value = { text: '빨간 메모\n완료', strikes: [{ from: 6, to: 8 }], textColors: [{ from: 0, to: 5, color: '#ff9595' as const }] };
+    let state = EditorState.create({ doc: memoDocument(value) });
+    expect(readMemo(state.doc)).toEqual(value);
+    state = state.apply(state.tr.insertText('추가 ', 1));
+    const updated = readMemo(state.doc);
+    expect(updated.textColors).toEqual([{ from: 0, to: 8, color: '#ff9595' }]);
+    expect(updated.strikes).toEqual([{ from: 9, to: 11 }]);
+  });
   it('strikes selected Korean text with marks without inserting characters, and supports undo/redo', () => {
     const original = '오전 회의 자료 준비';
     let state = EditorState.create({ doc: memoDocument({ text: original, strikes: [] }), plugins: [history()] });

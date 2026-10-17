@@ -154,7 +154,10 @@ try {
   await expect(editor).toBeVisible();
   await expect(editor).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
   const stored = JSON.parse(fs.readFileSync(path.join(directory, 'calendar.json'), 'utf8'));
-  assert.deepEqual(fs.readFileSync(path.join(directory, 'photos', stored.days[date].photos[0].file)), wide, 'Stored original is byte-for-byte unchanged');
+  const savedPhoto = await sharp(fs.readFileSync(path.join(directory, 'photos', stored.days[date].photos[0].file))).metadata();
+  assert.equal(savedPhoto.format, 'webp', 'Photo is stored as an optimized WebP copy');
+  assert.equal(savedPhoto.width, 600, 'Small photos are not enlarged');
+  assert.equal(savedPhoto.height, 120, 'Stored photo preserves its aspect ratio');
   await clickOutside(page.locator('.weekdays'));
   await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(800, 580));
   for (const [i, ratio] of [5, .2, 5].entries()) await assertWholeImage(today.locator('img').nth(i), ratio);
@@ -176,11 +179,11 @@ try {
   });
   await expect(editor).toHaveCount(0);
   await app.evaluate(() => { globalThis.__outsideTestWindow.destroy(); delete globalThis.__outsideTestWindow; });
-  console.log('PASS: photo-height editor with no reserved bottom space, real 0/30/60% background alpha, outside dismissal, uncropped landscape/portrait photos, compact scrolling, unchanged originals.');
+  console.log('PASS: photo-height editor with no reserved bottom space, real 0/30/60% background alpha, outside dismissal, uncropped landscape/portrait photos, compact scrolling, optimized photo storage.');
 } catch (error) {
   if (app) await (await app.firstWindow()).screenshot({ path: path.join(root, 'test-results/interactions-failure.png') }).catch(() => {});
   throw error;
 } finally {
   if (app) await app.close().catch(() => {});
-  if (path.dirname(directory) === os.tmpdir() && path.basename(directory).startsWith('photocalendar-interactions-')) fs.rmSync(directory, { recursive: true, force: true });
+  if (path.dirname(directory) === os.tmpdir() && path.basename(directory).startsWith('photocalendar-interactions-')) fs.rmSync(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
 }

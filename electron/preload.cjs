@@ -1,4 +1,4 @@
-const { contextBridge, ipcRenderer } = require('electron');
+const { contextBridge, ipcRenderer, webUtils } = require('electron');
 const subscribe = (channel, callback) => {
   const handler = (_event, value) => callback(value);
   ipcRenderer.on(channel, handler);
@@ -6,8 +6,17 @@ const subscribe = (channel, callback) => {
 };
 contextBridge.exposeInMainWorld('calendar', {
   load: () => ipcRenderer.invoke('calendar:load'),
+  openExcel: () => ipcRenderer.invoke('calendar:excel-open'),
+  previewExcel: (token, choices) => ipcRenderer.invoke('calendar:excel-preview', token, choices),
+  importExcel: (token, choices, mode) => ipcRenderer.invoke('calendar:excel-import', token, choices, mode),
+  exportExcel: format => ipcRenderer.invoke('calendar:excel-export', format),
   saveDay: (date, entry) => ipcRenderer.invoke('calendar:save-day', date, entry),
   importPhotos: (files) => ipcRenderer.invoke('calendar:import-photos', files),
+  photoPath: file => webUtils.getPathForFile(file),
+  installedFonts: () => ipcRenderer.invoke('calendar:fonts'),
+  systemCountry: () => ipcRenderer.invoke('calendar:country'),
+  holidayCountries: () => ipcRenderer.invoke('calendar:holiday-countries'),
+  holidays: (years, countryCode) => ipcRenderer.invoke('calendar:holidays', years, countryCode),
   pickPhotos: () => ipcRenderer.invoke('calendar:pick-photos'),
   pastePhotos: () => ipcRenderer.invoke('calendar:paste-photos'),
   beginResize: (edge, x, y) => ipcRenderer.send('window:resize-begin', edge, x, y),

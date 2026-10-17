@@ -1,7 +1,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
-const DEFAULT_SETTINGS = Object.freeze({ theme: 'light', backgroundColor: 'none', opacity: 30, weekStart: 0, fontSize: 13, windowMode: 'normal', startAtLogin: false });
+const DEFAULT_SETTINGS = Object.freeze({ theme: 'light', backgroundColor: 'none', opacity: 30, weekStart: 0, fontSize: 13, fontFamily: '', lineWidth: 1, showHolidays: true, holidayCountry: 'auto', windowMode: 'normal', startAtLogin: false });
 const COLORS = ['none', 'sage', 'peach', 'lavender', 'sky', 'rose'];
 const PHOTO_FILE = /^[a-f0-9-]{36}\.(png|jpg|webp|gif)$/;
 function validDate(key) {
@@ -11,10 +11,12 @@ function validDate(key) {
   return y >= 1900 && y <= 2200 && date.getFullYear() === y && date.getMonth() === m - 1 && date.getDate() === d;
 }
 function validateSettings(value) {
-  if (!value || !['light', 'dark'].includes(value.theme) || !Number.isFinite(value.opacity) || value.opacity < 0 || value.opacity > 100 || ![0, 1].includes(value.weekStart) || ![12, 13, 14, 15, 16].includes(value.fontSize) || !['normal', 'desktop', 'top'].includes(value.windowMode) || typeof value.startAtLogin !== 'boolean') throw new Error('설정 형식이 올바르지 않습니다.');
+  if (!value || !['light', 'dark'].includes(value.theme) || !Number.isFinite(value.opacity) || value.opacity < 0 || value.opacity > 100 || ![0, 1].includes(value.weekStart) || !Number.isInteger(value.fontSize) || value.fontSize < 8 || value.fontSize > 48 || !['normal', 'desktop', 'top'].includes(value.windowMode) || typeof value.startAtLogin !== 'boolean') throw new Error('설정 형식이 올바르지 않습니다.');
   const backgroundColor = value.backgroundColor === undefined ? DEFAULT_SETTINGS.backgroundColor : value.backgroundColor;
   if (backgroundColor !== 'none' && !(typeof backgroundColor === 'string' && /^#[0-9a-fA-F]{6}$/.test(backgroundColor))) throw new Error('배경색 형식이 올바르지 않습니다.');
-  return { theme: value.theme, backgroundColor, opacity: value.opacity, weekStart: value.weekStart, fontSize: value.fontSize, windowMode: value.windowMode, startAtLogin: value.startAtLogin };
+  const { fontFamily = '', lineWidth = 1, showHolidays = true, holidayCountry = 'auto' } = value;
+  if (typeof fontFamily !== 'string' || fontFamily.length > 200 || /[\x00-\x1f]/.test(fontFamily) || !Number.isFinite(lineWidth) || lineWidth < 0 || lineWidth > 6 || !Number.isInteger(lineWidth * 2) || typeof showHolidays !== 'boolean' || (holidayCountry !== 'auto' && (typeof holidayCountry !== 'string' || !/^[A-Z]{2}$/.test(holidayCountry)))) throw new Error('글꼴, 선 두께 또는 공휴일 설정이 올바르지 않습니다.');
+  return { theme: value.theme, backgroundColor, opacity: value.opacity, weekStart: value.weekStart, fontSize: value.fontSize, fontFamily, lineWidth, showHolidays, holidayCountry, windowMode: value.windowMode, startAtLogin: value.startAtLogin };
 }
 function legacyStrikes(source) {
   let text = '', offset = 0;
@@ -51,8 +53,17 @@ function validateEntry(value, legacy = false) {
     end = range.to;
     return { from: range.from, to: range.to };
   });
+  let colorEnd = 0;
+  const textColors = value.textColors ?? [];
+  if (!Array.isArray(textColors) || textColors.length > text.length) throw new Error('글자색 형식이 올바르지 않습니다.');
+  const colors = textColors.map(range => {
+    if (!range || !Number.isInteger(range.from) || !Number.isInteger(range.to) || range.from < colorEnd || range.to <= range.from || range.to > text.length || typeof range.color !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(range.color)) throw new Error('글자색 범위가 올바르지 않습니다.');
+    colorEnd = range.to;
+    return { from: range.from, to: range.to, color: range.color };
+  });
   return {
     text, strikes,
+    ...(colors.length ? { textColors: colors } : {}),
     photos: value.photos.map(p => {
       if (!p || typeof p.id !== 'string' || p.id.length > 100 || ids.has(p.id) || typeof p.name !== 'string' || p.name.length > 300 || !PHOTO_FILE.test(p.file) || !Number.isInteger(p.width) || p.width < 1 || !Number.isInteger(p.height) || p.height < 1) throw new Error('사진 형식이 올바르지 않습니다.');
       ids.add(p.id);
@@ -139,7 +150,7 @@ class CalendarStore {
     }
     for (const entry of Object.values(data.days)) for (const photo of entry.photos) photo.file = renamed.get(photo.file);
     // Machine-specific window/startup settings remain the user's current settings.
-    data.settings = { ...this.data.settings, theme: data.settings.theme, backgroundColor: data.settings.backgroundColor, opacity: data.settings.opacity, weekStart: data.settings.weekStart, fontSize: data.settings.fontSize };
+    data.settings = { ...data.settings, windowMode: this.data.settings.windowMode, startAtLogin: this.data.settings.startAtLogin };
     this.commit(data);
     return this.data;
   }

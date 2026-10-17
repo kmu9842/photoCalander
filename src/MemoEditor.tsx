@@ -66,11 +66,11 @@ export const MemoEditor = forwardRef<MemoHandle, { value: MemoValue; onChange(va
 
   useLayoutEffect(() => {
     const view = viewRef.current;
-    if (!view || (value.text === lastValue.current.text && JSON.stringify(value.strikes) === JSON.stringify(lastValue.current.strikes))) return;
+    if (!view || (value.text === lastValue.current.text && JSON.stringify(value.strikes) === JSON.stringify(lastValue.current.strikes) && JSON.stringify(value.textColors) === JSON.stringify(lastValue.current.textColors))) return;
     lastValue.current = value;
     const doc = memoDocument(value);
     if (!view.state.doc.eq(doc)) view.updateState(EditorState.create({ doc, plugins: view.state.plugins }));
-  }, [value.text, value.strikes]);
+  }, [value.text, value.strikes, value.textColors]);
 
   return <div className="memo-host" ref={host} />;
 });

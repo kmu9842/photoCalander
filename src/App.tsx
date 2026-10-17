@@ -2,7 +2,9 @@ import { useCallback, useEffect, useRef, useState, type CSSProperties, type Reac
 import { ArrowDownToLine, ArrowUpFromLine, CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, ClipboardPaste, FolderOpen, ImagePlus, Images, LoaderCircle, Maximize2, Minus, Moon, Palette, Pin, Plus, RotateCcw, Settings2, Strikethrough, Sun, Trash2, X } from 'lucide-react';
 import { dateKey, emptyDay, fromKey, longDate, monthDays, shiftMonth, WEEKDAYS } from './calendar';
 import { MemoEditor, type MemoHandle } from './MemoEditor';
-import type { CalendarData, Color, DayEntry, PaletteColor, Photo, ResizeEdge, Settings, StrikeRange } from './types';
+import { AppearanceSettings, fontStack } from './AppearanceSettings';
+import { ExcelSettings } from './ExcelSettings';
+import type { CalendarData, Color, DayEntry, HolidayResult, ImportPhoto, PaletteColor, Photo, ResizeEdge, Settings, StrikeRange, TextColorRange } from './types';
 
 const COLOR_ROWS = [
   ['#ffffff','#e5e7eb','#9ca3af','#6b7280','#374151','#111827','#000000','#64748b'],
@@ -57,15 +59,15 @@ function IconButton({ label, children, onClick, active = false, className = '', 
   return <button type="button" className={`icon-button ${active ? 'active' : ''} ${className}`} title={label} aria-label={label} onClick={onClick} disabled={disabled}>{children}</button>;
 }
 
-function NoteText({ text, strikes }: { text: string; strikes: StrikeRange[] }) {
+function NoteText({ text, strikes, textColors = [] }: { text: string; strikes: StrikeRange[]; textColors?: TextColorRange[] }) {
   const parts: ReactNode[] = [];
-  let offset = 0;
-  for (const range of strikes) {
-    if (range.from > offset) parts.push(text.slice(offset, range.from));
-    parts.push(<s key={range.from}>{text.slice(range.from, range.to)}</s>);
-    offset = range.to;
+  const boundaries = [...new Set([0, text.length, ...[...strikes, ...textColors].flatMap(range => [range.from, range.to])])].sort((a, b) => a - b);
+  for (let i = 0; i < boundaries.length - 1; i++) {
+    const from = boundaries[i], to = boundaries[i + 1];
+    const color = textColors.find(range => range.from <= from && range.to > from)?.color;
+    const content = text.slice(from, to);
+    parts.push(<span key={from} style={color ? { color } : undefined}>{strikes.some(range => range.from <= from && range.to > from) ? <s style={color ? { color: 'inherit' } : undefined}>{content}</s> : content}</span>);
   }
-  parts.push(text.slice(offset));
   return <>{parts}</>;
 }
 
@@ -99,16 +101,17 @@ function DayEditor({ date, entry, update, close, attach, paste, drop, showPhoto,
     <div className="editor-heading"><h2>{longDate(date)}</h2><IconButton label="편집 닫기" onClick={close}><X size={18} /></IconButton></div>
     <div className="editor-body">
       <div className="editor-tools"><ColorPicker value={entry.color} change={color => update(day => ({ ...day, color }))} /><button className="text-icon-button" title="취소선 · Ctrl+Shift+X" aria-label="선택한 글자 취소선" aria-pressed={strikeActive} onMouseDown={e => e.preventDefault()} onClick={() => memo.current?.toggleStrike()}><Strikethrough size={16} /></button></div>
-      <MemoEditor ref={memo} value={entry} onChange={value => update(day => ({ ...day, ...value }))} onStrikeChange={setStrikeActive} />
+      <MemoEditor ref={memo} value={entry} onChange={value => update(day => ({ ...day, ...value, textColors: value.textColors }))} onStrikeChange={setStrikeActive} />
       <div className="section-label photos-heading"><span>사진</span><div className="photo-actions"><IconButton label="사진 붙여넣기" disabled={uploading} onClick={paste}><ClipboardPaste size={16} /></IconButton><IconButton label="사진 첨부" disabled={uploading || entry.photos.length >= 20} onClick={attach}>{uploading ? <LoaderCircle className="spin" size={16} /> : <Plus size={17} />}</IconButton></div></div>
       {entry.photos.length === 0 ? <button className="photo-dropzone" aria-label="파일에서 사진 선택" onClick={attach} disabled={uploading}><ImagePlus size={24} /><span>사진 추가</span></button> : <div className="editor-photos">{entry.photos.map((photo, i) => <div key={photo.id} className="editor-photo"><button onClick={() => showPhoto(entry.photos, i)} aria-label={`${photo.name} 크게 보기`}><img src={photoURL(photo, true)} alt={photo.name} /><span className="photo-zoom"><Maximize2 size={14} /></span></button><button className="delete-photo" aria-label={`${photo.name} 사진 제거`} onClick={() => update(day => ({ ...day, photos: day.photos.filter(p => p.id !== photo.id) }))}><Trash2 size={13} /></button></div>)}</div>}
     </div>
   </aside>;
 }
 
-function SettingsModal({ settings, update, close, notify, restored }: {
+function SettingsModal({ settings, update, close, notify, restored, holidays, refreshHolidays }: {
   settings: Settings; update: (patch: Partial<Settings>) => Promise<void>; close: () => void;
   notify: (message: string) => void; restored: (data: CalendarData) => void;
+  holidays: HolidayResult & { loading: boolean }; refreshHolidays: () => void;
 }) {
   const [busy, setBusy] = useState(false);
   const [opacity, setOpacity] = useState(settings.opacity);
@@ -121,8 +124,10 @@ function SettingsModal({ settings, update, close, notify, restored }: {
       <div className="setting-row opacity-setting"><strong>배경 불투명도</strong><output>{opacity}%</output><input aria-label="배경 불투명도" type="range" min={0} max={100} value={opacity} onChange={e => setOpacity(Number(e.target.value))} onPointerUp={() => void update({ opacity })} onKeyUp={() => void update({ opacity })} /></div>
       <div className="setting-row"><strong>표시 위치</strong><select aria-label="위젯 표시 위치" value={settings.windowMode} onChange={e => void update({ windowMode: e.target.value as Settings['windowMode'] })}><option value="desktop">바탕화면 고정</option><option value="normal">일반 위젯</option><option value="top">항상 위에</option></select></div>
       <div className="setting-row"><div><strong>한 주의 시작</strong></div><select aria-label="한 주의 시작" value={settings.weekStart} onChange={e => void update({ weekStart: Number(e.target.value) as 0 | 1 })}><option value={0}>일요일</option><option value={1}>월요일</option></select></div>
-      <div className="setting-row"><div><strong>메모 글자 크기</strong></div><select aria-label="메모 글자 크기" value={settings.fontSize} onChange={e => void update({ fontSize: Number(e.target.value) })}>{[12, 13, 14, 15, 16].map(size => <option key={size} value={size}>{size}px</option>)}</select></div>
+      <div className="setting-row font-size-setting"><div><strong>전체 글자 크기</strong><p>날짜·요일·메모·메뉴에 함께 적용</p></div><select aria-label="전체 글자 크기" value={settings.fontSize} onChange={e => void update({ fontSize: Number(e.target.value) })}>{Array.from({ length: 41 }, (_, i) => i + 8).map(size => <option key={size} value={size}>{size}px{size === 13 ? ' (기본)' : ''}</option>)}</select></div>
+      <AppearanceSettings settings={settings} update={update} holidays={holidays} refresh={refreshHolidays} />
       <div className="setting-row"><strong>Windows 시작 시 실행</strong><button role="switch" aria-checked={settings.startAtLogin} aria-label="Windows 시작 시 실행" className={`switch ${settings.startAtLogin ? 'on' : ''}`} onClick={() => void update({ startAtLogin: !settings.startAtLogin })}><span /></button></div>
+      <ExcelSettings restored={restored} notify={notify} />
       <div className="settings-section"><div className="backup-actions"><button disabled={busy} onClick={() => void action(async () => { if (await window.calendar.exportBackup()) notify('백업 저장됨'); })}><ArrowDownToLine size={16} /> 백업 저장</button><button disabled={busy} onClick={() => void action(async () => { const result = await window.calendar.importBackup(); if (result) restored(result); })}><ArrowUpFromLine size={16} /> 불러오기</button><IconButton label="데이터 폴더 열기" onClick={() => void action(async () => { await window.calendar.openDataFolder(); })}><FolderOpen size={17} /></IconButton></div></div>
       <div className="settings-about"><button onClick={() => window.calendar.quit()}>앱 종료</button></div>
     </div>
@@ -148,6 +153,29 @@ export default function App() {
   const [toast, setToast] = useState('');
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const settingsQueue = useRef(Promise.resolve());
+  const [holidays, setHolidays] = useState<HolidayResult & { loading: boolean }>({ countryCode: '', holidays: [], stale: false, error: '', loading: false });
+  const [holidayRevision, setHolidayRevision] = useState(0);
+  const showHolidays = data?.settings.showHolidays;
+  const holidayCountry = data?.settings.holidayCountry;
+  const weekStart = data?.settings.weekStart;
+  useEffect(() => {
+    if (!showHolidays || holidayCountry === undefined || weekStart === undefined) {
+      setHolidays({ countryCode: '', holidays: [], stale: false, error: '', loading: false });
+      return;
+    }
+    let active = true;
+    const years = [...new Set(monthDays(month, weekStart).map(day => day.getFullYear()))];
+    const refresh = () => {
+      setHolidays({ countryCode: '', holidays: [], stale: false, error: '', loading: true });
+      window.calendar.holidays(years, holidayCountry).then(result => { if (active) setHolidays({ ...result, loading: false }); }).catch(() => {
+        if (active) setHolidays({ countryCode: '', holidays: [], stale: false, error: '공휴일을 불러오지 못했습니다. 설정에서 다시 시도해 주세요.', loading: false });
+      });
+    };
+    refresh();
+    const timer = setInterval(refresh, 60 * 60 * 1000);
+    window.addEventListener('online', refresh);
+    return () => { active = false; clearInterval(timer); window.removeEventListener('online', refresh); };
+  }, [month, weekStart, showHolidays, holidayCountry, holidayRevision]);
 
   useEffect(() => {
     const closeOutside = (event: PointerEvent) => {
@@ -207,11 +235,15 @@ export default function App() {
   const attachFiles = useCallback(async (date: string, files: File[]) => {
     if (!files.length || !dataRef.current) return;
     if (files.some(file => !['image/png', 'image/jpeg', 'image/webp', 'image/gif'].includes(file.type) && !/\.(png|jpe?g|webp|gif)$/i.test(file.name))) { notify('JPG, PNG, WEBP, GIF 사진을 선택해 주세요.'); return; }
-    if (files.some(file => file.size > 30 * 1024 * 1024)) { notify('사진은 한 장당 30MB까지 첨부할 수 있어요.'); return; }
     if ((dataRef.current.days[date]?.photos.length || 0) + files.length > 20) { notify('하루에 사진을 20장까지 첨부할 수 있어요.'); return; }
     setUploading(count => count + 1);
     try {
-      const imported = await window.calendar.importPhotos(await Promise.all(files.map(async file => ({ name: file.name, bytes: await file.arrayBuffer() }))));
+      const inputs: ImportPhoto[] = [];
+      for (const file of files) {
+        const path = window.calendar.photoPath(file);
+        inputs.push(path ? { name: file.name, path } : { name: file.name, bytes: await file.arrayBuffer() });
+      }
+      const imported = await window.calendar.importPhotos(inputs);
       if ((dataRef.current.days[date]?.photos.length || 0) + imported.length > 20) throw new Error('하루에 사진을 20장까지 첨부할 수 있어요.');
       updateDay(date, day => ({ ...day, photos: [...day.photos, ...imported] }));
     } catch (error) { notify(errorText(error)); }
@@ -266,7 +298,10 @@ export default function App() {
   const style = {
     '--surface-alpha': data.settings.opacity / 100,
     '--surface-rgb': background === 'none' ? undefined : [1, 3, 5].map(offset => parseInt(background.slice(offset, offset + 2), 16)).join(','),
-    '--memo-size': `${data.settings.fontSize}px`,
+    '--font-size': `${data.settings.fontSize}px`,
+    '--font-scale': data.settings.fontSize / 13,
+    '--grid-line-width': `${data.settings.lineWidth}px`,
+    fontFamily: fontStack(data.settings.fontFamily),
   } as CSSProperties;
 
   return <main className={`widget theme-${data.settings.theme} ${data.settings.opacity < 15 ? 'transparent-widget' : ''} ${editorDate ? 'editing' : ''}`} style={style}>
@@ -284,11 +319,12 @@ export default function App() {
     <div className="calendar-and-editor">
       <section className="calendar" aria-label={`${month.getFullYear()}년 ${month.getMonth() + 1}월 달력`}>
         <div className="weekdays" role="row">{Array.from({ length: 7 }, (_, i) => (i + data.settings.weekStart) % 7).map(day => <div key={day} className={day === 0 ? 'sunday' : day === 6 ? 'saturday' : ''} role="columnheader">{WEEKDAYS[day]}</div>)}</div>
-        <div className="calendar-grid" style={{ gridTemplateRows: `repeat(${days.length / 7}, minmax(0, 1fr))` }} role="grid">
+        <div className="calendar-grid" style={{ gridTemplateRows: `repeat(${days.length / 7}, minmax(calc(54px * var(--font-scale)), 1fr))` }} role="grid">
           {days.map(date => {
             const key = dateKey(date), entry = data.days[key] || emptyDay(), outside = date.getMonth() !== month.getMonth(), isToday = key === today;
             const photos = entry.photos;
-            return <div key={key} data-date={key} role="gridcell" tabIndex={0} aria-label={`${longDate(key)}${isToday ? ', 오늘' : ''}${photos.length ? `, 사진 ${photos.length}장` : ''}`} aria-selected={selected === key}
+            const holiday = showHolidays ? [...new Set(holidays.holidays.filter(item => item.date === key).map(item => item.name))].join(' · ') : '';
+            return <div key={key} data-date={key} data-holiday={holiday || undefined} role="gridcell" tabIndex={0} aria-label={`${longDate(key)}${isToday ? ', 오늘' : ''}${holiday ? `, ${holiday}` : ''}${photos.length ? `, 사진 ${photos.length}장` : ''}`} aria-selected={selected === key}
               style={entry.color.startsWith('#') ? { backgroundColor: `${entry.color}66` } : undefined}
               className={`day-cell ${entry.color.startsWith('#') ? '' : `color-${entry.color}`} ${outside ? 'outside' : ''} ${isToday ? 'is-today' : ''} ${selected === key ? 'is-selected' : ''} ${dropDate === key ? 'is-dragging' : ''} ${date.getDay() === 0 ? 'sunday' : date.getDay() === 6 ? 'saturday' : ''}`}
               onClick={() => { setSelected(key); setEditorDate(key); }}
@@ -298,8 +334,9 @@ export default function App() {
               onDrop={e => { e.preventDefault(); e.stopPropagation(); setDropDate(null); setSelected(key); void attachFiles(key, Array.from(e.dataTransfer.files)); }}>
               <div className="day-top"><div className="day-date"><span className="date-number">{date.getDate()}</span>{outside && date.getDate() === 1 && <span className="other-month">{date.getMonth() + 1}월</span>}</div><button className="cell-add" aria-label={`${key} 사진 추가`} title="사진 추가" onClick={e => { e.stopPropagation(); choosePhotos(key); }}><ImagePlus size={14} /></button></div>
               <div className={`day-content ${photos.length ? 'has-photos' : ''}`}>
+                {holiday && <div className="holiday-name" title={holiday}>{holiday}</div>}
                 {photos.length > 0 && <div className={`cell-photos count-${Math.min(photos.length, 3)}`}>{photos.slice(0, 3).map((photo, index) => <button key={photo.id} className="cell-photo" onClick={e => { e.stopPropagation(); setLightbox({ photos, index }); }} onDoubleClick={e => e.stopPropagation()} aria-label={`${photo.name} 보기`}><img src={photoURL(photo, true)} alt={photo.name} loading="lazy" draggable={false} />{index === 2 && photos.length > 3 && <span className="more-photos">+{photos.length - 3}</span>}</button>)}</div>}
-                <div className="cell-notes">{entry.text && <div className="note-text"><NoteText text={entry.text} strikes={entry.strikes} /></div>}</div>
+                <div className="cell-notes">{entry.text && <div className="note-text"><NoteText text={entry.text} strikes={entry.strikes} textColors={entry.textColors} /></div>}</div>
                 {!entry.text && !photos.length && <button className="cell-placeholder" aria-label={`${key} 메모 작성`} title="메모 작성" onClick={e => { e.stopPropagation(); setSelected(key); setEditorDate(key); }}><Plus size={13} /></button>}
               </div>
               {dropDate === key && <div className="drop-overlay"><ImagePlus size={24} /></div>}
@@ -311,7 +348,7 @@ export default function App() {
     </div>
     {failed && <button className="save-error" onClick={() => { for (const [date, entry] of dirty.current) persistDay(date, entry); }}><RotateCcw size={14} /> 저장 실패 · 재시도</button>}
     <ResizeHandles />
-    {settingsOpen && <SettingsModal settings={data.settings} update={updateSettings} close={() => setSettingsOpen(false)} notify={notify} restored={next => { replaceData(next); setEditorDate(null); dirty.current.clear(); setFailed(false); }} />}
+    {settingsOpen && <SettingsModal settings={data.settings} update={updateSettings} close={() => setSettingsOpen(false)} notify={notify} holidays={holidays} refreshHolidays={() => setHolidayRevision(value => value + 1)} restored={next => { replaceData(next); setEditorDate(null); dirty.current.clear(); setFailed(false); }} />}
     {lightbox && <Modal title="사진 크게 보기" close={() => setLightbox(null)} className="lightbox"><div className="lightbox-top"><span><Images size={16} /> {lightbox.index + 1} / {lightbox.photos.length}</span><IconButton label="사진 닫기" onClick={() => setLightbox(null)}><X size={21} /></IconButton></div><div className="lightbox-image"><img src={photoURL(lightbox.photos[lightbox.index])} alt={lightbox.photos[lightbox.index].name} /></div><div className="lightbox-bottom"><IconButton label="이전 사진" disabled={lightbox.photos.length < 2} onClick={() => setLightbox(current => current && { ...current, index: (current.index - 1 + current.photos.length) % current.photos.length })}><ChevronLeft size={22} /></IconButton><span>{lightbox.photos[lightbox.index].name}</span><IconButton label="다음 사진" disabled={lightbox.photos.length < 2} onClick={() => setLightbox(current => current && { ...current, index: (current.index + 1) % current.photos.length })}><ChevronRight size={22} /></IconButton></div></Modal>}
     {toast && <div className="toast" role="status"><span>{toast}</span><button aria-label="알림 닫기" onClick={() => setToast('')}><X size={14} /></button></div>}
   </main>;

@@ -11,6 +11,19 @@ const text = '한글 기록\n\n여러 줄 취소선';
 const entry = { text, strikes: [{ from: text.indexOf('취소선'), to: text.length }], photos: [], color: 'sage' };
 afterEach(() => { for (const dir of directories.splice(0)) fs.rmSync(dir, { recursive: true, force: true }); });
 describe('durable local calendar storage', () => {
+  it('persists expanded typography, borders and country preferences across restart and backup', async () => {
+    const store = makeStore();
+    store.saveSettings({ ...store.data.settings, fontSize: 48, fontFamily: '맑은 고딕', lineWidth: 3.5, holidayCountry: 'JP', showHolidays: false });
+    const saved = new CalendarStore(store.directory).data.settings;
+    expect(saved).toMatchObject({ fontSize: 48, fontFamily: '맑은 고딕', lineWidth: 3.5, holidayCountry: 'JP', showHolidays: false });
+    const restored = makeStore();
+    await restored.restoreBackup(JSON.parse(store.exportBackup()), () => undefined);
+    expect(restored.data.settings).toEqual(saved);
+    for (const fontSize of [8, 13, 24, 48]) expect(() => store.saveSettings({ ...saved, fontSize })).not.toThrow();
+    for (const fontSize of [7, 49, 13.5, NaN, Infinity]) expect(() => store.saveSettings({ ...saved, fontSize })).toThrow();
+    expect(() => store.saveSettings({ ...saved, lineWidth: -1 })).toThrow();
+    expect(() => store.saveSettings({ ...saved, holidayCountry: '../KR' })).toThrow();
+  });
   it('persists multiline text, blank lines, strikes, and colors across restarts', () => {
     const store = makeStore(); store.saveDay('2026-10-17', entry);
     expect(new CalendarStore(store.directory).data.days['2026-10-17']).toEqual(entry);

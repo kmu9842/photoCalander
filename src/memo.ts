@@ -1,7 +1,7 @@
 import { Schema, type Node as EditorNode } from 'prosemirror-model';
-import type { StrikeRange } from './types';
+import type { StrikeRange, TextColorRange } from './types';
 
-export interface MemoValue { text: string; strikes: StrikeRange[] }
+export interface MemoValue { text: string; strikes: StrikeRange[]; textColors?: TextColorRange[] }
 
 export const memoSchema = new Schema({
   nodes: {
@@ -12,25 +12,23 @@ export const memoSchema = new Schema({
   },
   marks: {
     strike: { parseDOM: [{ tag: 's' }, { tag: 'del' }, { tag: 'strike' }, { style: 'text-decoration', getAttrs: value => String(value).includes('line-through') ? null : false }], toDOM: () => ['s', 0] },
+    color: { attrs: { color: {} }, toDOM: mark => ['span', { style: `color:${mark.attrs.color}` }, 0] },
   },
 });
 
 export function memoDocument(value: MemoValue): EditorNode {
-  let offset = 0, rangeIndex = 0;
+  let offset = 0;
   const paragraphs = value.text.split('\n').map(line => {
     const nodes: EditorNode[] = [];
-    let cursor = 0;
-    while (rangeIndex < value.strikes.length && value.strikes[rangeIndex].to <= offset) rangeIndex++;
-    for (let i = rangeIndex; i < value.strikes.length; i++) {
-      const range = value.strikes[i];
-      if (range.from >= offset + line.length) break;
-      const from = Math.max(0, range.from - offset), to = Math.min(line.length, range.to - offset);
-      if (from >= to) continue;
-      if (from > cursor) nodes.push(memoSchema.text(line.slice(cursor, from)));
-      nodes.push(memoSchema.text(line.slice(from, to), [memoSchema.marks.strike.create()]));
-      cursor = to;
+    const ranges = [...value.strikes, ...(value.textColors || [])].filter(range => range.to > offset && range.from < offset + line.length);
+    const boundaries = [...new Set([0, line.length, ...ranges.flatMap(range => [Math.max(0, range.from - offset), Math.min(line.length, range.to - offset)])])].sort((a, b) => a - b);
+    for (let i = 0; i < boundaries.length - 1; i++) {
+      const from = boundaries[i], to = boundaries[i + 1], marks = [];
+      if (value.strikes.some(range => range.from <= offset + from && range.to > offset + from)) marks.push(memoSchema.marks.strike.create());
+      const color = value.textColors?.find(range => range.from <= offset + from && range.to > offset + from);
+      if (color) marks.push(memoSchema.marks.color.create({ color: color.color }));
+      nodes.push(memoSchema.text(line.slice(from, to), marks));
     }
-    if (cursor < line.length) nodes.push(memoSchema.text(line.slice(cursor)));
     offset += line.length + 1;
     return memoSchema.nodes.paragraph.create(null, nodes);
   });
@@ -40,6 +38,7 @@ export function memoDocument(value: MemoValue): EditorNode {
 export function readMemo(doc: EditorNode): MemoValue {
   let text = '';
   const strikes: StrikeRange[] = [];
+  const textColors: TextColorRange[] = [];
   doc.forEach((paragraph, _offset, index) => {
     if (index) text += '\n';
     paragraph.forEach(node => {
@@ -51,7 +50,13 @@ export function readMemo(doc: EditorNode): MemoValue {
         if (previous?.to === from) previous.to = text.length;
         else strikes.push({ from, to: text.length });
       }
+      const color = node.marks.find(mark => mark.type === memoSchema.marks.color)?.attrs.color;
+      if (color) {
+        const previous = textColors.at(-1);
+        if (previous?.to === from && previous.color === color) previous.to = text.length;
+        else textColors.push({ from, to: text.length, color });
+      }
     });
   });
-  return { text, strikes };
+  return { text, strikes, ...(textColors.length ? { textColors } : {}) };
 }
