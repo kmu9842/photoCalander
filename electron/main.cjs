@@ -10,7 +10,8 @@ const { WindowResizer } = require('./window-resize.cjs');
 const { EditorPanel } = require('./editor-panel.cjs');
 const { clipboardFiles } = require('./clipboard-files.cjs');
 const { observeOutsideFocus } = require('./outside-focus.cjs');
-const { prepareImage } = require('./images.cjs');
+const { prepareImage, photoLuminance } = require('./images.cjs');
+const { previewCalendar } = require('./ical-import.cjs');
 const { installedFonts } = require('./system-info.cjs');
 const { HolidayService } = require('./holidays.cjs');
 const { readWorkbook, parseWorkbook, exportWorkbook, applyImport } = require('./excel.cjs');
@@ -176,6 +177,46 @@ else {
       return net.fetch(pathToFileURL(file).toString());
     });
     handle('calendar:load', () => store.data);
+    let calendarPending;
+    const calendarSummary = pending => {
+      const { days, ambiguities, ...summary } = pending.parsed;
+      return { ...summary, token: pending.token, filename: pending.filename, sample: Object.entries(days).slice(0, 8).map(([date, entry]) => ({ date, text: entry.text.slice(0, 600) })) };
+    };
+    handle('calendar:ics-open', range => withNativeDialog(async () => {
+      const result = await dialog.showOpenDialog(window, { title: '구글 캘린더 파일 선택', properties: ['openFile'], filters: [{ name: 'iCalendar / Google Calendar', extensions: ['ics', 'zip'] }] });
+      if (result.canceled) return null;
+      const resultData = await previewCalendar({ filename: result.filePaths[0], range });
+      calendarPending = { ...resultData, token: randomUUID(), filename: path.basename(result.filePaths[0]) };
+      return calendarSummary(calendarPending);
+    }));
+    handle('calendar:ics-preview', async (token, range) => {
+      if (!calendarPending || token !== calendarPending.token) throw new Error('캘린더 파일을 다시 선택해 주세요.');
+      const previous = calendarPending;
+      const result = await previewCalendar({ sources: previous.sources, range });
+      if (calendarPending !== previous) throw new Error('파일이 변경되었습니다. 다시 미리보기해 주세요.');
+      calendarPending = { ...previous, ...result, token: randomUUID() };
+      return calendarSummary(calendarPending);
+    });
+    handle('calendar:ics-import', (token, mode) => {
+      if (!calendarPending || token !== calendarPending.token) throw new Error('먼저 캘린더 미리보기를 확인해 주세요.');
+      const result = applyImport(store, calendarPending.parsed, mode, 'ical');
+      calendarPending = undefined;
+      return result;
+    });
+    const luminanceCache = new Map();
+    handle('calendar:photo-luminance', (filename, ratio) => {
+      if (typeof filename !== 'string' || !PHOTO_FILE.test(filename) || !Number.isFinite(ratio) || ratio < .05 || ratio > 20) throw new Error('잘못된 사진 요청입니다.');
+      const original = path.join(store.photoDirectory, filename);
+      const thumb = path.join(store.photoDirectory, 'thumb-' + filename + '.jpg');
+      const file = fs.existsSync(thumb) ? thumb : original;
+      const key = `${file}:${fs.statSync(file).mtimeMs}:${ratio}`;
+      if (!luminanceCache.has(key)) {
+        if (luminanceCache.size >= 256) luminanceCache.delete(luminanceCache.keys().next().value);
+        const pending = photoLuminance(file, ratio).catch(error => { luminanceCache.delete(key); throw error; });
+        luminanceCache.set(key, pending);
+      }
+      return luminanceCache.get(key);
+    });
     let excelPending;
     const excelPreview = (token, choices = {}) => {
       if (!excelPending || token !== excelPending.token) throw new Error('엑셀 파일을 다시 선택해 주세요.');
@@ -298,7 +339,7 @@ else {
     ipcMain.on('window:resize-begin', (event, edge, x, y) => { checkSender(event); resizer?.begin(edge, x, y); });
     ipcMain.on('window:resize-to', (event, x, y) => { checkSender(event); resizer?.move(x, y); });
     ipcMain.on('window:resize-end', event => { checkSender(event); resizer?.end(); });
-    ipcMain.on('window:editor-open', (event, open) => { checkSender(event); editorPanel?.setOpen(open); });
+    handle('window:editor-open', open => { editorPanel.setOpen(open); return window.getContentBounds().width; });
     for (const [channel, action] of Object.entries({ 'window:minimize': () => window.hide(), 'window:hide': () => window.hide(), 'window:quit': () => { quitting = true; app.quit(); } })) {
       ipcMain.on(channel, event => { checkSender(event); action(); });
     }

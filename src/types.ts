@@ -29,6 +29,9 @@ export interface ExcelPreview {
   sample: { date: string; text: string }[];
 }
 export interface DesktopAPI {
+  openCalendar(range: CalendarRange): Promise<CalendarPreview | null>;
+  previewCalendar(token: string, range: CalendarRange): Promise<CalendarPreview>;
+  importCalendar(token: string, mode: 'merge' | 'replace'): Promise<CalendarData>;
   load(): Promise<CalendarData>;
   openExcel(): Promise<ExcelPreview | null>;
   previewExcel(token: string, choices: Record<string, string>): Promise<ExcelPreview>;
@@ -36,6 +39,7 @@ export interface DesktopAPI {
   exportExcel(format: 'list' | 'calendar'): Promise<boolean>;
   saveDay(date: string, entry: DayEntry): Promise<void>;
   importPhotos(files: ImportPhoto[]): Promise<Photo[]>;
+  photoLuminance(file: string, aspectRatio: number): Promise<number>;
   photoPath(file: File): string;
   installedFonts(): Promise<string[]>;
   systemCountry(): Promise<string>;
@@ -46,7 +50,7 @@ export interface DesktopAPI {
   beginResize(edge: ResizeEdge, x: number, y: number): void;
   resizeTo(x: number, y: number): void;
   endResize(): void;
-  setEditorOpen(open: boolean): void;
+  setEditorOpen(open: boolean): Promise<number>;
   saveSettings(settings: Settings): Promise<Settings>;
   exportBackup(): Promise<boolean>;
   importBackup(): Promise<CalendarData | null>;
@@ -57,5 +61,10 @@ export interface DesktopAPI {
   onSettings(callback: (settings: Settings) => void): () => void;
   onFocusDate(callback: () => void): () => void;
   onBlur(callback: () => void): () => void;
+}
+export interface CalendarRange { from: string; to: string }
+export interface CalendarPreview {
+  token: string; filename: string; count: number; eventCount: number; firstDate: string; lastDate: string;
+  calendars: string[]; range: CalendarRange; timeZone: string; sample: { date: string; text: string }[];
 }
 declare global { interface Window { calendar: DesktopAPI } }

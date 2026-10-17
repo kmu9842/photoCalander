@@ -11,7 +11,7 @@ import { currentLineStruck, memoDocument, memoSchema, readMemo, selectedTextSize
 export interface MemoHandle { toggleStrike(): void; setFontSize(size: number | null): void }
 export interface MemoFormat { strike: boolean; fontSize: number | null }
 
-export const MemoEditor = forwardRef<MemoHandle, { value: MemoValue; fontSize: number; onChange(value: MemoValue): void; onFormatChange(format: MemoFormat): void }>(function MemoEditor({ value, fontSize, onChange, onFormatChange }, ref) {
+export const MemoEditor = forwardRef<MemoHandle, { value: MemoValue; fontSize: number; autoFocus?: boolean; onChange(value: MemoValue): void; onFormatChange(format: MemoFormat): void }>(function MemoEditor({ value, fontSize, autoFocus = true, onChange, onFormatChange }, ref) {
   const host = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const callbacks = useRef({ onChange, onFormatChange, fontSize });
@@ -64,10 +64,11 @@ export const MemoEditor = forwardRef<MemoHandle, { value: MemoValue; fontSize: n
       },
     });
     viewRef.current = view;
-    view.focus();
     callbacks.current.onFormatChange({ strike: currentLineStruck(view.state), fontSize: selectedTextSize(view.state, callbacks.current.fontSize) });
     return () => { viewRef.current = null; view.destroy(); };
   }, []);
+
+  useLayoutEffect(() => { if (autoFocus) viewRef.current?.focus(); }, [autoFocus]);
 
   useLayoutEffect(() => {
     const view = viewRef.current;

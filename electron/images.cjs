@@ -18,4 +18,19 @@ async function prepareImage(input) {
     throw new Error('사진을 읽을 수 없습니다. 손상되지 않은 JPG, PNG, WEBP, GIF 파일을 선택해 주세요.');
   }
 }
-module.exports = { prepareImage };
+// Match the centered cover crop used by the calendar, then compare linear light.
+async function photoLuminance(input, aspectRatio) {
+  const width = Math.max(1, Math.round(64 * Math.min(1, aspectRatio)));
+  const height = Math.max(1, Math.round(64 / Math.max(1, aspectRatio)));
+  const { data, info } = await sharp(input).rotate()
+    .resize(width, height, { fit: 'cover', position: 'centre' })
+    .flatten({ background: '#ffffff' }).toColourspace('srgb').removeAlpha()
+    .raw().toBuffer({ resolveWithObject: true });
+  const linear = value => { const s = value / 255; return s <= .04045 ? s / 12.92 : ((s + .055) / 1.055) ** 2.4; };
+  let sum = 0;
+  for (let i = 0; i < data.length; i += info.channels) {
+    sum += .2126 * linear(data[i]) + .7152 * linear(data[i + 1]) + .0722 * linear(data[i + 2]);
+  }
+  return sum / (info.width * info.height);
+}
+module.exports = { prepareImage, photoLuminance };

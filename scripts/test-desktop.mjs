@@ -108,8 +108,10 @@ try {
   await expect(nextCell.locator('img')).toHaveCount(1);
   await transfer.dispose();
   await page.getByRole('button', { name: '위젯 설정', exact: true }).click();
+  await page.getByRole('tab', { name: '달력', exact: true }).click();
   await page.getByRole('combobox', { name: '한 주의 시작' }).selectOption('1');
   await expect(page.locator('.weekdays>div').first()).toContainText('월');
+  await page.getByRole('tab', { name: '화면', exact: true }).click();
   await page.getByRole('button', { name: '다크', exact: true }).click();
   await expect(page.locator('.widget')).toHaveClass(/theme-dark/);
   await page.getByRole('button', { name: '설정 닫기', exact: true }).click();
@@ -143,6 +145,7 @@ try {
   await page.getByRole('button', { name: '바탕화면 고정 해제', exact: true }).click();
   await expect(page.getByRole('button', { name: '바탕화면에 고정', exact: true })).toBeVisible();
   await page.getByRole('button', { name: '위젯 설정', exact: true }).click();
+  await page.getByRole('tab', { name: '창 동작', exact: true }).click();
   await page.getByRole('combobox', { name: '위젯 표시 위치' }).selectOption('top');
   await expect.poll(() => app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].isAlwaysOnTop())).toBe(true);
   await page.getByRole('combobox', { name: '위젯 표시 위치' }).selectOption('normal');

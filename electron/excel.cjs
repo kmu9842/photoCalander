@@ -181,7 +181,7 @@ function exportWorkbook(days, format, fallbackMonth = new Date().toISOString().s
   }
   return workbook;
 }
-function applyImport(store, parsed, mode) {
+function applyImport(store, parsed, mode, source = 'excel') {
   if (parsed.ambiguities.length) throw new Error('모호한 연월을 먼저 선택해 주세요.');
   if (!['merge', 'replace'].includes(mode)) throw new Error('가져오기 방식이 올바르지 않습니다.');
   const days = { ...store.data.days };
@@ -191,7 +191,7 @@ function applyImport(store, parsed, mode) {
     days[date] = validateEntry(next);
   }
   if (!parsed.count) throw new Error('가져올 메모가 없습니다.');
-  fs.writeFileSync(path.join(store.directory, `before-excel-${Date.now()}-${randomUUID()}.json`), JSON.stringify(store.data), { flag: 'wx' });
+  fs.writeFileSync(path.join(store.directory, `before-${source === 'ical' ? 'calendar' : 'excel'}-${Date.now()}-${randomUUID()}.json`), JSON.stringify(store.data), { flag: 'wx' });
   store.commit({ ...store.data, days });
   return store.data;
 }

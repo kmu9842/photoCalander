@@ -4,9 +4,19 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { createRequire } from 'node:module';
-const { prepareImage } = createRequire(import.meta.url)('../electron/images.cjs');
+const { prepareImage, photoLuminance } = createRequire(import.meta.url)('../electron/images.cjs');
 
 describe('automatic photo resizing', () => {
+  it('measures centered cover crops and handles bright, dark and transparent photos', async () => {
+    const solid = (color: string) => sharp({ create: { width: 120, height: 60, channels: 4, background: color } }).png().toBuffer();
+    expect(await photoLuminance(await solid('#ffffff'), 1)).toBeCloseTo(1);
+    expect(await photoLuminance(await solid('#000000'), 1)).toBeCloseTo(0);
+    expect(await photoLuminance(await solid('#00000000'), 1)).toBeCloseTo(1);
+    const panorama = await sharp({ create: { width: 600, height: 100, channels: 3, background: '#ffffff' } })
+      .composite([{ input: await sharp({ create: { width: 200, height: 100, channels: 3, background: '#000000' } }).png().toBuffer(), left: 200, top: 0 }]).png().toBuffer();
+    expect(await photoLuminance(panorama, 1)).toBeLessThan(.01);
+    expect(await photoLuminance(panorama, 6)).toBeGreaterThan(.6);
+  });
   it('accepts an original over 30MB by path, saves a small copy, and leaves the original intact', async () => {
     const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'photocalendar-image-'));
     try {

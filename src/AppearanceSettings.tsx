@@ -5,27 +5,36 @@ export const fontStack = (family: string) => `${family ? JSON.stringify(family) 
 const countryNames = new Intl.DisplayNames(['ko'], { type: 'region' });
 export const countryName = (code: string) => code ? countryNames.of(code) || code : '감지 안 됨';
 
-export function AppearanceSettings({ settings, update, holidays, refresh }: {
+export function AppearanceSettings({ settings, update }: { settings: Settings; update: (patch: Partial<Settings>) => Promise<void> }) {
+  const [fonts, setFonts] = useState<string[]>([]);
+  const [fontError, setFontError] = useState('');
+  useEffect(() => {
+    let active = true;
+    window.calendar.installedFonts().then(value => { if (active) setFonts(value); }).catch(() => { if (active) setFontError('설치된 글꼴 목록을 읽지 못했습니다. 설정을 다시 열어 주세요.'); });
+    return () => { active = false; };
+  }, []);
+  const choices = [...new Set([...(settings.fontFamily ? [settings.fontFamily] : []), ...fonts])];
+  return <>
+    <div className="setting-row"><div><strong>글꼴</strong>{fontError && <p role="status">{fontError}</p>}</div><select aria-label="글꼴" value={settings.fontFamily} onChange={e => void update({ fontFamily: e.target.value })}><option value="">시스템 기본</option>{choices.map(font => <option key={font} value={font} style={{ fontFamily: fontStack(font) }}>{font}</option>)}</select></div>
+    <div className="setting-row"><strong>달력 선 두께</strong><select aria-label="달력 선 두께" value={settings.lineWidth} onChange={e => void update({ lineWidth: Number(e.target.value) })}>{Array.from({ length: 13 }, (_, i) => i / 2).map(width => <option key={width} value={width}>{width === 0 ? '선 없음' : `${width}px`}</option>)}</select></div>
+  </>;
+}
+
+export function HolidaySettings({ settings, update, holidays, refresh }: {
   settings: Settings; update: (patch: Partial<Settings>) => Promise<void>;
   holidays: HolidayResult & { loading: boolean }; refresh: () => void;
 }) {
-  const [fonts, setFonts] = useState<string[]>([]);
-  const [fontError, setFontError] = useState('');
   const [countries, setCountries] = useState<string[]>([]);
   const [countryError, setCountryError] = useState('');
   const [systemCountry, setSystemCountry] = useState('');
   useEffect(() => {
     let active = true;
-    window.calendar.installedFonts().then(value => { if (active) setFonts(value); }).catch(() => { if (active) setFontError('설치된 글꼴 목록을 읽지 못했습니다. 설정을 다시 열어 주세요.'); });
     window.calendar.systemCountry().then(value => { if (active) setSystemCountry(value); }).catch(() => {});
     window.calendar.holidayCountries().then(value => { if (active) setCountries(value.map(country => country.countryCode).sort((a, b) => countryName(a).localeCompare(countryName(b), 'ko'))); }).catch(() => { if (active) setCountryError('국가 목록을 받지 못했습니다. 인터넷 연결 후 설정을 다시 열어 주세요.'); });
     return () => { active = false; };
   }, []);
-  const choices = [...new Set([...(settings.fontFamily ? [settings.fontFamily] : []), ...fonts])];
   const countryChoices = [...new Set([...(settings.holidayCountry !== 'auto' ? [settings.holidayCountry] : []), ...(systemCountry ? [systemCountry] : []), ...countries])];
   return <>
-    <div className="setting-row"><div><strong>글꼴</strong>{fontError && <p role="status">{fontError}</p>}</div><select aria-label="글꼴" value={settings.fontFamily} onChange={e => void update({ fontFamily: e.target.value })}><option value="">시스템 기본</option>{choices.map(font => <option key={font} value={font} style={{ fontFamily: fontStack(font) }}>{font}</option>)}</select></div>
-    <div className="setting-row"><strong>달력 선 두께</strong><select aria-label="달력 선 두께" value={settings.lineWidth} onChange={e => void update({ lineWidth: Number(e.target.value) })}>{Array.from({ length: 13 }, (_, i) => i / 2).map(width => <option key={width} value={width}>{width === 0 ? '선 없음' : `${width}px`}</option>)}</select></div>
     <div className="setting-row"><strong>공휴일 표시</strong><button role="switch" aria-label="공휴일 표시" aria-checked={settings.showHolidays} className={`switch ${settings.showHolidays ? 'on' : ''}`} onClick={() => void update({ showHolidays: !settings.showHolidays })}><span /></button></div>
     {settings.showHolidays && <div className="setting-row holiday-setting">
       <strong>공휴일 국가</strong>
