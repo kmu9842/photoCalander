@@ -1,0 +1,22 @@
+{
+  "provider": "Forge MCP",
+  "model": "Seedream 5.0 Pro",
+  "visibility": "private",
+  "created": "2026-10-18",
+  "assets": [
+    {
+      "file": "analog-paper.jpg",
+      "prompt": "A flat archival scan of a blank sheet of soft off-white recycled cotton paper, filling the entire square from edge to edge. Extremely fine pale gray fibers and sparse tiny natural flecks, subtle organic paper grain, an understated analog stationery texture for a readable monthly calendar and white instant-photo borders. Straight overhead orthographic view, even diffuse neutral lighting across the whole surface. The surface is consistently light ivory, nearly white, with low contrast, uniform detail and seamless-looking edges. Only blank unmarked paper is visible."
+    },
+    {
+      "file": "polaroid-frame.jpg",
+      "prompt": "A single blank vintage instant-photo paper frame as a reusable graphic asset, perfectly straight, flat frontal orthographic scan, evenly lit. Portrait 3:4 composition. The outer white frame is a clean rectangle occupying the canvas from 3% to 97% horizontally and 3% to 97% vertically. The photo opening is a solid pure black rectangle from 10% to 90% horizontally and 9% to 77% vertically; it contains only uniform black. The top and side borders are narrow white satin photographic paper with delicate realistic fibers and faint warm age marks; the bottom border is much wider, clean blank white paper. The entire area outside the frame is pure black as well. Only one frame, blank unprinted paper, crisp square corners, subtle natural material detail, restrained analog scrapbook aesthetic."
+    },
+    {
+      "file": "stamp-frame-v2.jpg",
+      "prompt": "A single blank vintage postage-stamp photo frame as a reusable graphic asset, perfectly upright, flat frontal orthographic scan, even diffuse studio lighting. Square composition. The warm ivory paper frame fills the canvas from 3% to 97% on both axes. All four outside edges have evenly spaced small semicircular perforated notches, like a real detached postage stamp. A perfectly rectangular photo opening occupies the center from 15% to 85% horizontally and vertically, filled with uniform pure black. The entire area outside the paper and in the perforated notches is also pure black. The ivory paper border has tactile fine fibers and a very thin faded sepia double keyline surrounding the black photo opening. Only one blank empty stamp frame, unprinted paper with no denomination, letters, illustration or symbols. Delicate aged paper realism, understated analog stationery.",
+      "edit_prompt": "In Image 1, enlarge only the central pure-black rectangular photo opening until it occupies 78 percent of the full image width and 78 percent of the full image height, centered. The opening must be almost as large as the stamp itself, leaving only a narrow ivory paper border around it. Move the thin sepia keyline outward to run just beside this enlarged opening. Keep the existing outer perforated silhouette, square composition, ivory paper texture, black area outside the stamp, straight orientation and even lighting identical. The resulting border should be thin enough for a photograph to dominate the frame."
+    }
+  ],
+  "rendering": "Original private Forge results downloaded locally. Black frame openings and surroundings are masked at render time; source image files are preserved."
+}

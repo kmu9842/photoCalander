@@ -30,7 +30,7 @@ try {
   }
   browser = await chromium.connectOverCDP(`http://127.0.0.1:${port}`);
   page = browser.contexts()[0].pages()[0];
-  await expect(page.locator('.widget')).toHaveClass(/theme-light/);
+  await expect(page.locator('.widget')).toHaveClass(/theme-polaroid/);
   await expect(page.locator('.widget')).toHaveCSS('background-color', 'rgba(255, 255, 255, 0.3)');
   await page.locator('.navigation').getByRole('button', { name: '달력 배경색', exact: true }).click();
   await page.getByRole('group', { name: '달력 배경색 팔레트' }).getByRole('button', { name: '#bfdbfe 색상', exact: true }).click();

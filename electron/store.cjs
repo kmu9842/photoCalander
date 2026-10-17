@@ -1,7 +1,8 @@
 const fs = require('node:fs');
 const path = require('node:path');
+const { validateThemes, validatePhotoStyle } = require('./theme-validation.cjs');
 
-const DEFAULT_SETTINGS = Object.freeze({ theme: 'light', backgroundColor: 'none', opacity: 30, weekStart: 0, fontSize: 13, fontFamily: '', lineWidth: 1, showHolidays: true, holidayCountry: 'auto', windowMode: 'normal', startAtLogin: false });
+const DEFAULT_SETTINGS = Object.freeze({ theme: 'polaroid', backgroundColor: 'none', opacity: 30, weekStart: 0, fontSize: 13, fontFamily: '', lineWidth: 1, showHolidays: true, holidayCountry: 'auto', windowMode: 'normal', startAtLogin: false });
 const COLORS = ['none', 'sage', 'peach', 'lavender', 'sky', 'rose'];
 const PHOTO_FILE = /^[a-f0-9-]{36}\.(png|jpg|webp|gif)$/;
 function validDate(key) {
@@ -11,12 +12,15 @@ function validDate(key) {
   return y >= 1900 && y <= 2200 && date.getFullYear() === y && date.getMonth() === m - 1 && date.getDate() === d;
 }
 function validateSettings(value) {
-  if (!value || !['light', 'dark'].includes(value.theme) || !Number.isFinite(value.opacity) || value.opacity < 0 || value.opacity > 100 || ![0, 1].includes(value.weekStart) || !Number.isInteger(value.fontSize) || value.fontSize < 8 || value.fontSize > 48 || !['normal', 'desktop', 'top'].includes(value.windowMode) || typeof value.startAtLogin !== 'boolean') throw new Error('설정 형식이 올바르지 않습니다.');
+  if (!value || !['light', 'dark', 'polaroid', 'analog', 'custom'].includes(value.theme) || !Number.isFinite(value.opacity) || value.opacity < 0 || value.opacity > 100 || ![0, 1].includes(value.weekStart) || !Number.isInteger(value.fontSize) || value.fontSize < 8 || value.fontSize > 48 || !['normal', 'desktop', 'top'].includes(value.windowMode) || typeof value.startAtLogin !== 'boolean') throw new Error('설정 형식이 올바르지 않습니다.');
+  const customThemes = validateThemes(value.customThemes);
+  if (value.customThemeId !== undefined && !customThemes.some(theme => theme.id === value.customThemeId)) throw new Error('저장한 테마를 찾을 수 없습니다.');
+  if (value.theme === 'custom' && !value.customThemeId) throw new Error('사용자 테마를 선택해 주세요.');
   const backgroundColor = value.backgroundColor === undefined ? DEFAULT_SETTINGS.backgroundColor : value.backgroundColor;
   if (backgroundColor !== 'none' && !(typeof backgroundColor === 'string' && /^#[0-9a-fA-F]{6}$/.test(backgroundColor))) throw new Error('배경색 형식이 올바르지 않습니다.');
   const { fontFamily = '', lineWidth = 1, showHolidays = true, holidayCountry = 'auto' } = value;
   if (typeof fontFamily !== 'string' || fontFamily.length > 200 || /[\x00-\x1f]/.test(fontFamily) || !Number.isFinite(lineWidth) || lineWidth < 0 || lineWidth > 6 || !Number.isInteger(lineWidth * 2) || typeof showHolidays !== 'boolean' || (holidayCountry !== 'auto' && (typeof holidayCountry !== 'string' || !/^[A-Z]{2}$/.test(holidayCountry)))) throw new Error('글꼴, 선 두께 또는 공휴일 설정이 올바르지 않습니다.');
-  return { theme: value.theme, backgroundColor, opacity: value.opacity, weekStart: value.weekStart, fontSize: value.fontSize, fontFamily, lineWidth, showHolidays, holidayCountry, windowMode: value.windowMode, startAtLogin: value.startAtLogin };
+  return { theme: value.theme, ...(value.customThemes !== undefined ? { customThemes } : {}), ...(value.customThemeId ? { customThemeId: value.customThemeId } : {}), backgroundColor, opacity: value.opacity, weekStart: value.weekStart, fontSize: value.fontSize, fontFamily, lineWidth, showHolidays, holidayCountry, windowMode: value.windowMode, startAtLogin: value.startAtLogin };
 }
 function legacyStrikes(source) {
   let text = '', offset = 0;
@@ -83,7 +87,7 @@ function validateEntry(value, legacy = false) {
     photos: value.photos.map(p => {
       if (!p || typeof p.id !== 'string' || p.id.length > 100 || ids.has(p.id) || typeof p.name !== 'string' || p.name.length > 300 || !PHOTO_FILE.test(p.file) || !Number.isInteger(p.width) || p.width < 1 || !Number.isInteger(p.height) || p.height < 1) throw new Error('사진 형식이 올바르지 않습니다.');
       ids.add(p.id);
-      return { id: p.id, name: p.name, file: p.file, width: p.width, height: p.height };
+      return { id: p.id, name: p.name, file: p.file, width: p.width, height: p.height, ...validatePhotoStyle(p) };
     }),
     color: value.color,
   };

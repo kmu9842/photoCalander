@@ -19,11 +19,22 @@ try {
     ? { executablePath: path.join(root, 'release/win-unpacked/Photo Calendar.exe'), args: [], env }
     : { args: [root], env });
   const page = await app.firstWindow();
+  // Geometry cycles must not depend on other apps taking focus on this desktop.
+  // Native outside-focus dismissal is tested separately in test-interactions.
+  await app.evaluate(({ BrowserWindow }) => {
+    const win = BrowserWindow.getAllWindows()[0], contents = win.webContents;
+    const send = contents.send.bind(contents);
+    contents.send = (channel, ...args) => channel === 'window:blur' ? undefined : send(channel, ...args);
+    win.setFocusable(false);
+  });
   const failures = [];
   page.on('pageerror', error => failures.push(error.message));
   const widget = page.locator('.widget');
   const bounds = () => app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].getBounds());
-  const open = async () => { await page.locator('.is-today .day-date').click(); await expect(widget).toHaveClass(/editor-open\b/); };
+  const open = async () => {
+    await page.locator('.is-today .day-date').click();
+    await expect(widget).toHaveClass(/editor-open\b/);
+  };
   const closed = () => expect(widget).toHaveClass(/editor-closed\b/);
   const saved = () => JSON.parse(fs.readFileSync(path.join(directory, 'window.json'), 'utf8'));
   const reset = async () => {
@@ -83,6 +94,7 @@ try {
   assert.deepEqual(failures, []);
   console.log('PASS: repeated close-button/outside/Escape cycles keep both dimensions; held resize press and drag during panel collapse preserve only the requested resize in normal/desktop modes, including saved bounds.');
 } catch (error) {
+  if (app) console.error('Window focus at failure:', await app.evaluate(({ BrowserWindow }) => ({ focused: BrowserWindow.getAllWindows()[0].isFocused(), bounds: BrowserWindow.getAllWindows()[0].getBounds() })).catch(() => null));
   if (app) await (await app.firstWindow()).screenshot({ path: path.join(root, 'test-results/editor-size-failure.png') }).catch(() => {});
   throw error;
 } finally {

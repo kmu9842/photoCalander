@@ -1,14 +1,24 @@
 export type PaletteColor = 'none' | `#${string}`;
 export type Color = PaletteColor | 'sage' | 'peach' | 'lavender' | 'sky' | 'rose';
 export type ResizeEdge = 'n' | 's' | 'e' | 'w' | 'ne' | 'nw' | 'se' | 'sw';
-export interface Photo { id: string; name: string; file: string; width: number; height: number }
+export type PhotoFrame = 'none' | 'polaroid' | 'stamp';
+export interface PhotoPlacement { x: number; y: number; rotation: number }
+export interface Photo { id: string; name: string; file: string; width: number; height: number; frame?: PhotoFrame; placement?: PhotoPlacement }
+export interface ThemeDesign {
+  id: string; name: string; mode: 'light' | 'dark'; layout: 'classic' | 'paper' | 'glass';
+  background: `#${string}`; panel: `#${string}`; text: `#${string}`; accent: `#${string}`; line: `#${string}`;
+  texture: 'none' | 'paper'; textureStrength: number; defaultFrame: PhotoFrame;
+  radius: number; opacity: number; fontFamily: string; fontSize: number; lineWidth: number;
+}
 export interface StrikeRange { from: number; to: number }
 export interface TextColorRange extends StrikeRange { color: `#${string}` }
 export interface TextSizeRange extends StrikeRange { size: number }
 export type PhotoSize = 'small' | 'medium' | 'large';
 export interface DayEntry { text: string; strikes: StrikeRange[]; textColors?: TextColorRange[]; textSizes?: TextSizeRange[]; fontSize?: number; photoBlur?: boolean; photoSize?: PhotoSize; photos: Photo[]; color: Color }
 export interface Settings {
-  theme: 'light' | 'dark';
+  theme: 'light' | 'dark' | 'polaroid' | 'analog' | 'custom';
+  customThemes?: ThemeDesign[];
+  customThemeId?: string;
   backgroundColor: PaletteColor;
   opacity: number;
   weekStart: 0 | 1;

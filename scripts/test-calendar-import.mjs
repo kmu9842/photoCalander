@@ -31,10 +31,12 @@ try {
   page.on('pageerror', error => failures.push(error.message));
   await page.getByRole('button', { name: '위젯 설정', exact: true }).click();
   const settings = page.getByRole('dialog', { name: '위젯 설정' });
-  await expect(settings.getByRole('tab')).toHaveCount(4);
+  await expect(settings.getByRole('tab')).toHaveCount(5);
   await expect(settings.getByRole('tabpanel')).toHaveCount(1);
   await expect(settings.getByRole('spinbutton', { name: '전체 글자 크기' })).toBeVisible();
   await settings.getByRole('tab', { name: '화면', exact: true }).press('ArrowRight');
+  await expect(settings.getByRole('tab', { name: '테마', exact: true })).toBeFocused();
+  await settings.getByRole('tab', { name: '테마', exact: true }).press('ArrowRight');
   await expect(settings.getByRole('tab', { name: '달력', exact: true })).toBeFocused();
   await expect(settings.getByRole('combobox', { name: '한 주의 시작' })).toBeVisible();
   await expect(settings.getByRole('spinbutton', { name: '전체 글자 크기' })).toHaveCount(0);

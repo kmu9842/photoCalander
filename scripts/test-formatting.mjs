@@ -95,7 +95,8 @@ try {
   for (const label of ['소', '중', '대']) {
     await sizes.getByRole('button', { name: label, exact: true }).click();
     await expect(sizes.getByRole('button', { name: label, exact: true })).toHaveAttribute('aria-pressed', 'true');
-    heights.push((await cell().locator('.cell-photos').boundingBox()).height);
+    const photo = cell().locator('.positioned-photo').first();
+    heights.push((await (await photo.count() ? photo : cell().locator('.cell-photos')).boundingBox()).height);
   }
   assert.ok(heights[0] < heights[1] && heights[1] < heights[2], `Small/medium/large allocations: ${heights}`);
   await page.getByRole('switch', { name: '날짜 사진 블러' }).click();

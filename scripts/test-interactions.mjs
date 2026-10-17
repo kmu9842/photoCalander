@@ -4,9 +4,13 @@ import os from 'node:os';
 import path from 'node:path';
 import assert from 'node:assert/strict';
 import sharp from 'sharp';
+import { createRequire } from 'node:module';
 
 const root = path.resolve(import.meta.dirname, '..');
 const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'photocalendar-interactions-'));
+const { CalendarStore } = createRequire(import.meta.url)('../electron/store.cjs');
+const store = new CalendarStore(directory);
+store.saveSettings({ ...store.data.settings, theme: 'light' });
 const env = { ...process.env, PHOTO_CALENDAR_DATA_DIR: directory, PHOTO_CALENDAR_TEST: '1' };
 delete env.ELECTRON_RUN_AS_NODE;
 delete env.VITE_DEV_SERVER_URL;
@@ -111,7 +115,8 @@ try {
   const editorBox = await editor.boundingBox();
   assert.ok(Math.abs(photoBox.height - imageBox.height) < 1, 'Photo container follows the image height without a reserved blank slot');
   assert.ok(Math.abs(imageBox.width / imageBox.height - 5) < .02, 'Image element itself follows the original ratio');
-  assert.ok(editorBox.y + editorBox.height - photoBox.y - photoBox.height <= 9, 'Editor ends immediately after the photos');
+  const arrangementToggle = await editor.locator('.photo-arrange-toggle').boundingBox();
+  assert.ok(editorBox.y + editorBox.height - arrangementToggle.y - arrangementToggle.height <= 9, 'Editor ends immediately after the photo arrangement control');
   // Read compositor alpha at empty points, not just a CSS declaration.
   const emptyPoints = [
     { x: editorBox.x + 5, y: editorBox.y + editorBox.height - 4 },

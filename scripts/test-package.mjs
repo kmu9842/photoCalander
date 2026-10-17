@@ -13,10 +13,10 @@ try {
   const executablePath = path.join(root, 'release/win-unpacked/Photo Calendar.exe');
   app = await electron.launch({ executablePath, args: [], env, timeout: 60000 });
   const page = await app.firstWindow();
-  await expect(page.locator('.widget')).toHaveClass(/theme-light/);
+  await expect(page.locator('.widget')).toHaveClass(/theme-polaroid/);
   const settings = await page.evaluate(() => window.calendar.load());
   assert.equal(settings.settings.opacity, 30);
-  assert.equal(settings.settings.theme, 'light');
+  assert.equal(settings.settings.theme, 'polaroid');
   // Check native decoders for every advertised format.
   const images = await page.evaluate(() => {
     const canvas = document.createElement('canvas'); canvas.width = canvas.height = 16;
