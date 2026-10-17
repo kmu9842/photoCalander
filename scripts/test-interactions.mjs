@@ -10,7 +10,7 @@ const root = path.resolve(import.meta.dirname, '..');
 const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'photocalendar-interactions-'));
 const { CalendarStore } = createRequire(import.meta.url)('../electron/store.cjs');
 const store = new CalendarStore(directory);
-store.saveSettings({ ...store.data.settings, theme: 'light' });
+store.saveSettings({ ...store.data.settings, theme: 'light', colorMode: 'light' });
 const env = { ...process.env, PHOTO_CALENDAR_DATA_DIR: directory, PHOTO_CALENDAR_TEST: '1' };
 delete env.ELECTRON_RUN_AS_NODE;
 delete env.VITE_DEV_SERVER_URL;

@@ -111,8 +111,8 @@ try {
   await page.getByRole('tab', { name: '달력', exact: true }).click();
   await page.getByRole('combobox', { name: '한 주의 시작' }).selectOption('1');
   await expect(page.locator('.weekdays>div').first()).toContainText('월');
-  await page.getByRole('tab', { name: '화면', exact: true }).click();
-  await page.getByRole('button', { name: '다크', exact: true }).click();
+  await page.getByRole('tab', { name: '테마', exact: true }).click();
+  await page.getByRole('button', { name: '다크 테마 적용', exact: true }).click();
   await expect(page.locator('.widget')).toHaveClass(/theme-dark/);
   await page.getByRole('button', { name: '설정 닫기', exact: true }).click();
   await page.screenshot({ path: path.join(results, 'widget-dark.png') });
@@ -174,7 +174,8 @@ try {
   const opacity = page.getByRole('slider', { name: '배경 불투명도' });
   await opacity.focus();
   await opacity.press('Home');
-  await page.getByRole('button', { name: '다크', exact: true }).click();
+  await page.getByRole('tab', { name: '테마', exact: true }).click();
+  await page.getByRole('combobox', { name: '화면 밝기 모드', exact: true }).selectOption('dark');
   await page.getByRole('button', { name: '설정 닫기', exact: true }).click();
   await expect(page.locator('.widget')).toHaveClass(/transparent-widget/);
   await page.screenshot({ path: path.join(results, 'widget-transparent.png'), omitBackground: true });

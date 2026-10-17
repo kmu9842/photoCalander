@@ -17,6 +17,8 @@ export type PhotoSize = 'small' | 'medium' | 'large';
 export interface DayEntry { text: string; strikes: StrikeRange[]; textColors?: TextColorRange[]; textSizes?: TextSizeRange[]; fontSize?: number; photoBlur?: boolean; photoSize?: PhotoSize; photos: Photo[]; color: Color }
 export interface Settings {
   theme: 'light' | 'dark' | 'polaroid' | 'analog' | 'custom';
+  colorMode: 'system' | 'light' | 'dark';
+  softFocus: boolean;
   customThemes?: ThemeDesign[];
   customThemeId?: string;
   backgroundColor: PaletteColor;

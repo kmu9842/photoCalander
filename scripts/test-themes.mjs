@@ -62,6 +62,17 @@ try {
   const assets = await page.evaluate(async () => Promise.all(['analog-paper','polaroid-frame','stamp-frame-v2'].map(name => new Promise(resolve => { const image = new Image(); image.onload = () => resolve({ name, width: image.naturalWidth }); image.onerror = () => resolve({ name, width: 0 }); image.src = new URL(`./assets/${name}.jpg`, location.href).href; }))));
   assert.ok(assets.every(asset => asset.width > 1000), 'Actual generated artwork loads from the application');
   assert.ok(await cell.locator('.cell-notes').evaluate(el => el.scrollHeight <= el.clientHeight), 'Two-line notes remain fully visible with medium frames');
+  // Blurred borders must remain visible inside photo cells that clip their contents.
+  const photoCell = page.locator(`[data-date="${month}-03"]`);
+  const { data: pixels, info } = await sharp(await photoCell.screenshot({ scale: 'css' })).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+  const mean = (x, y, width, height) => {
+    let sum = 0;
+    for (let row = y; row < y + height; row++) for (let col = x; col < x + width; col++) sum += pixels[(row * info.width + col) * info.channels];
+    return sum / (width * height);
+  };
+  const middle = Math.floor(info.height * .4), lowerRight = Math.floor(info.width * .8);
+  assert.ok(mean(info.width - 3, middle, 3, 12) < mean(info.width - 9, middle, 3, 12) - 10, 'Right grid line stays visible on framed photo cells');
+  assert.ok(mean(lowerRight, info.height - 3, 12, 3) < mean(lowerRight, info.height - 9, 12, 3) - 10, 'Bottom grid line stays visible on framed photo cells');
   fs.mkdirSync(path.join(root, 'test-results'), { recursive: true });
   await page.screenshot({ path: path.join(root, 'test-results/theme-polaroid.png') });
   await cell.locator('.day-date').click();

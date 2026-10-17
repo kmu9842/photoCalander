@@ -9,7 +9,7 @@ import { AppearanceSettings, HolidaySettings, fontStack } from './AppearanceSett
 import { ExcelSettings } from './ExcelSettings';
 import { CalendarImportSettings } from './CalendarImportSettings';
 const ThemeSettings = lazy(() => import('./ThemeSettings').then(module => ({ default: module.ThemeSettings })));
-import { themeFor, themeStyle } from './themes';
+import { resolvedTheme, themeStyle, useSystemDark } from './themes';
 import { PhotoArrangement } from './PhotoArrangement';
 import type { CalendarData, Color, DayEntry, HolidayResult, ImportPhoto, PaletteColor, Photo, PhotoFrame, PhotoSize, ResizeEdge, Settings, StrikeRange, TextColorRange, TextSizeRange } from './types';
 
@@ -132,6 +132,7 @@ function SettingsModal({ settings, update, close, notify, restored, holidays, re
 }) {
   const [busy, setBusy] = useState(false);
   const [opacity, setOpacity] = useState(settings.opacity);
+  const systemDark = useSystemDark();
   useEffect(() => { setOpacity(settings.opacity); }, [settings.opacity]);
   const [category, setCategory] = useState('appearance');
   const categories = [{ id: 'appearance', label: '화면' }, { id: 'theme', label: '테마' }, { id: 'calendar', label: '달력' }, { id: 'window', label: '창 동작' }, { id: 'data', label: '데이터' }];
@@ -146,7 +147,7 @@ function SettingsModal({ settings, update, close, notify, restored, holidays, re
     <div className="settings-scroll">
       <div id="settings-panel-theme" role="tabpanel" aria-labelledby="settings-tab-theme" hidden={category !== 'theme'}><Suspense fallback={<p>테마를 불러오는 중…</p>}><ThemeSettings settings={settings} update={update} /></Suspense></div>
       <div id="settings-panel-appearance" role="tabpanel" aria-labelledby="settings-tab-appearance" hidden={category !== 'appearance'}>
-      <div className="setting-row"><strong>달력 배경색</strong><ColorPicker scope="calendar" value={settings.backgroundColor} defaultColor={themeFor(settings).background} change={backgroundColor => void update({ backgroundColor })} /></div>
+      <div className="setting-row"><strong>달력 배경색</strong><ColorPicker scope="calendar" value={settings.backgroundColor} defaultColor={resolvedTheme(settings, systemDark).background} change={backgroundColor => void update({ backgroundColor })} /></div>
       <div className="setting-row opacity-setting"><strong>배경 불투명도</strong><output>{opacity}%</output><input aria-label="배경 불투명도" type="range" min={0} max={100} value={opacity} onChange={e => setOpacity(Number(e.target.value))} onPointerUp={() => void update({ opacity })} onKeyUp={() => void update({ opacity })} /></div>
       <div className="setting-row font-size-setting"><div><strong>전체 글자 크기</strong><p>날짜·요일·메모·메뉴에 함께 적용 · 기본 13px</p></div><FontSizeSpinner label="전체 글자 크기" value={settings.fontSize} change={fontSize => void update({ fontSize })} /></div>
       <AppearanceSettings settings={settings} update={update} />
@@ -170,6 +171,7 @@ function SettingsModal({ settings, update, close, notify, restored, holidays, re
 }
 
 export default function App() {
+  const systemDark = useSystemDark();
   const [data, setData] = useState<CalendarData | null>(null);
   const dataRef = useRef<CalendarData | null>(null);
   const [loadError, setLoadError] = useState('');
@@ -333,7 +335,7 @@ export default function App() {
   const days = monthDays(month, data.settings.weekStart);
   const monthPrefix = dateKey(month).slice(0, 7);
   const background = data.settings.backgroundColor;
-  const theme = themeFor(data.settings);
+  const theme = resolvedTheme(data.settings, systemDark);
   const designed = !['light', 'dark'].includes(data.settings.theme);
   const style = {
     ...(designed ? themeStyle(theme) : {}),
@@ -345,9 +347,11 @@ export default function App() {
     '--calendar-layout-width': editorPanel.calendarWidth === null ? undefined : `${editorPanel.calendarWidth}px`,
     '--editor-duration': `${editorPanel.duration}ms`,
     fontFamily: fontStack(data.settings.fontFamily),
+    '--title-font': data.settings.fontFamily ? fontStack(data.settings.fontFamily) : theme.layout === 'glass' ? "'Caveat',cursive" : "'Cormorant Garamond',serif",
+    '--date-font': data.settings.fontFamily ? fontStack(data.settings.fontFamily) : "'Cormorant Garamond','Gowun Dodum',serif",
   } as CSSProperties;
 
-  return <main className={`widget theme-${data.settings.theme} layout-${theme.layout} ${designed ? 'designed-theme' : ''} ${data.settings.opacity < 15 ? 'transparent-widget' : ''} ${displayedDate ? 'editing' : ''} editor-${editorPanel.phase}`} style={style} onTransitionEnd={editorPanel.onTransitionEnd}>
+  return <main className={`widget theme-${designed ? data.settings.theme : theme.id} mode-${theme.mode} ${data.settings.softFocus ? 'soft-focus' : ''} layout-${theme.layout} ${designed ? 'designed-theme' : ''} ${data.settings.opacity < 15 ? 'transparent-widget' : ''} ${displayedDate ? 'editing' : ''} editor-${editorPanel.phase}`} style={style} onTransitionEnd={editorPanel.onTransitionEnd}>
     {editorDate && <button type="button" className="editor-dismiss-layer" aria-label="편집창 바깥" tabIndex={-1} onClick={e => { e.stopPropagation(); setEditorDate(null); }} onDragEnter={e => { if (Array.from(e.dataTransfer.types).includes('Files')) setEditorDate(null); }} />}
     <div className="calendar-layout" ref={editorPanel.layoutRef}>
     <header className="titlebar">
@@ -358,7 +362,7 @@ export default function App() {
       <div className="month-heading"><button className="month-title" title="월 이동" onClick={() => setMonthPickerOpen(open => !open)}><span>{month.getFullYear()}.</span><b>{String(month.getMonth() + 1).padStart(2, '0')}</b>{theme.layout !== 'classic' && <span className="themed-month">{month.toLocaleString('en-US', { month: 'long' })}<small>{month.getFullYear()}</small></span>}</button>
         {monthPickerOpen && <div className="month-picker"><input id="month-jump" aria-label="이동할 월" type="month" min="1900-01" max="2200-12" value={monthPrefix} onChange={e => { if (/^\d{4}-\d{2}$/.test(e.target.value)) { const next = fromKey(e.target.value + '-01'); if (next.getFullYear() >= 1900 && next.getFullYear() <= 2200) { setMonth(next); setMonthPickerOpen(false); } } }} /></div>}
       </div>
-      <div className="navigation"><IconButton label="이전 달" onClick={() => navigate(-1)}><ChevronLeft size={18} /></IconButton><button className="today-button" onClick={goToday}>오늘</button><IconButton label="다음 달" onClick={() => navigate(1)}><ChevronRight size={18} /></IconButton><span className="control-separator" /><ColorPicker scope="calendar" value={background} defaultColor={theme.background} change={backgroundColor => void updateSettings({ backgroundColor })} /><IconButton label={data.settings.theme === 'light' ? '다크 테마' : '라이트 테마'} onClick={() => void updateSettings({ theme: data.settings.theme === 'light' ? 'dark' : 'light', customThemeId: undefined })}>{data.settings.theme === 'light' ? <Moon size={17} /> : <Sun size={17} />}</IconButton><IconButton label="위젯 설정" active={settingsOpen} onClick={() => setSettingsOpen(true)}><Settings2 size={18} /></IconButton></div>
+      <div className="navigation"><IconButton label="이전 달" onClick={() => navigate(-1)}><ChevronLeft size={18} /></IconButton><button className="today-button" onClick={goToday}>오늘</button><IconButton label="다음 달" onClick={() => navigate(1)}><ChevronRight size={18} /></IconButton><span className="control-separator" /><ColorPicker scope="calendar" value={background} defaultColor={theme.background} change={backgroundColor => void updateSettings({ backgroundColor })} /><IconButton label={theme.mode === 'light' ? '다크 테마' : '라이트 테마'} onClick={() => void updateSettings({ colorMode: theme.mode === 'light' ? 'dark' : 'light' })}>{theme.mode === 'light' ? <Moon size={17} /> : <Sun size={17} />}</IconButton><IconButton label="위젯 설정" active={settingsOpen} onClick={() => setSettingsOpen(true)}><Settings2 size={18} /></IconButton></div>
     </div>
     <div className="calendar-and-editor">
       <section className="calendar" aria-label={`${month.getFullYear()}년 ${month.getMonth() + 1}월 달력`}>

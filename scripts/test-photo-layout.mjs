@@ -11,7 +11,7 @@ const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'photocalendar-photo-lay
 const { CalendarStore } = createRequire(import.meta.url)('../electron/store.cjs');
 const store = new CalendarStore(directory);
 // Legacy unframed layout remains covered; framed layouts are in test-themes.
-store.saveSettings({ ...store.data.settings, theme: 'light', showHolidays: false });
+store.saveSettings({ ...store.data.settings, theme: 'light', colorMode: 'light', showHolidays: false });
 const env = { ...process.env, PHOTO_CALENDAR_DATA_DIR: directory, PHOTO_CALENDAR_TEST: '1' };
 delete env.ELECTRON_RUN_AS_NODE;
 delete env.VITE_DEV_SERVER_URL;

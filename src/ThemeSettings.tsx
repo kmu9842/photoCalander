@@ -1,9 +1,9 @@
 import { useEffect, useState, type CSSProperties } from 'react';
 import { Copy, Pencil, Plus, Trash2 } from 'lucide-react';
-import { BUILTIN_THEMES, contrastRatio, themeFor, themePatch } from './themes';
+import { BUILTIN_THEMES, contrastRatio, resolvedTheme, themePatch, useSystemDark } from './themes';
 import { FRAME_NAMES } from './PhotoFrame';
 import { FontSizeSpinner } from './FontSizeSpinner';
-import { fontStack } from './AppearanceSettings';
+import { BUNDLED_FONTS, fontStack } from './AppearanceSettings';
 import type { Settings, ThemeDesign } from './types';
 
 function ThemePreview({ theme }: { theme: ThemeDesign }) {
@@ -14,6 +14,7 @@ function ThemePreview({ theme }: { theme: ThemeDesign }) {
   </div>;
 }
 export function ThemeSettings({ settings, update }: { settings: Settings; update: (patch: Partial<Settings>) => Promise<void> }) {
+  const systemDark = useSystemDark();
   const [draft, setDraft] = useState<ThemeDesign | null>(null);
   const [fonts, setFonts] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
@@ -38,8 +39,10 @@ export function ThemeSettings({ settings, update }: { settings: Settings; update
   };
   return <div className="theme-settings">
     <p className="theme-intro">종이 달력처럼, 바탕화면 위에 붙인 사진처럼.</p>
+    <label className="theme-field">화면 밝기<select aria-label="화면 밝기 모드" value={settings.colorMode} onChange={e => void update({ colorMode: e.target.value as Settings['colorMode'] })}><option value="system">시스템 설정 따르기</option><option value="light">라이트</option><option value="dark">다크</option></select></label>
+    <div className="setting-row"><div><strong>달력 글자·선 블러</strong><p>글자와 격자선을 부드럽게 · 기본 켜짐</p></div><button role="switch" aria-label="달력 글자·선 블러" aria-checked={settings.softFocus} className={`switch ${settings.softFocus ? 'on' : ''}`} onClick={() => void update({ softFocus: !settings.softFocus })}><span /></button></div>
     <div className="theme-presets">{BUILTIN_THEMES.map(theme => <button key={theme.id} className="theme-card" aria-label={`${theme.name} 테마 적용`} aria-pressed={settings.theme === theme.id} onClick={() => void update(themePatch(theme))}><ThemePreview theme={theme} /><span>{theme.name}</span></button>)}</div>
-    <div className="theme-saved-heading"><strong>내 테마 <small>{saved.length}/30</small></strong><button onClick={() => edit({ ...themeFor(settings), opacity: settings.opacity, fontFamily: settings.fontFamily, fontSize: settings.fontSize, lineWidth: settings.lineWidth, ...(settings.backgroundColor !== 'none' ? { background: settings.backgroundColor } : {}) }, true)} disabled={saved.length >= 30}><Plus size={14} /> 새 테마 만들기</button></div>
+    <div className="theme-saved-heading"><strong>내 테마 <small>{saved.length}/30</small></strong><button onClick={() => edit({ ...resolvedTheme(settings, systemDark), opacity: settings.opacity, fontFamily: settings.fontFamily, fontSize: settings.fontSize, lineWidth: settings.lineWidth, ...(settings.backgroundColor !== 'none' ? { background: settings.backgroundColor } : {}) }, true)} disabled={saved.length >= 30}><Plus size={14} /> 새 테마 만들기</button></div>
     {!saved.length && <p className="theme-empty">기본 테마를 바탕으로 색상과 질감, 사진 틀을 바꿔 저장하세요.</p>}
     <div className="saved-themes">{saved.map(theme => <div className="saved-theme" key={theme.id}><button aria-label={`${theme.name} 저장 테마 적용`} aria-pressed={settings.theme === 'custom' && settings.customThemeId === theme.id} onClick={() => void update(themePatch(theme, true))}><span style={{ background: theme.background, color: theme.text, borderColor: theme.accent }}>Aa</span>{theme.name}</button><button title="테마 편집" aria-label={`${theme.name} 테마 편집`} onClick={() => edit(theme, false)}><Pencil size={14} /></button><button title="테마 삭제" aria-label={`${theme.name} 테마 삭제`} onClick={async () => { await update({ ...(settings.customThemeId === theme.id ? themePatch(BUILTIN_THEMES[2]) : {}), customThemes: saved.filter(t => t.id !== theme.id) }); if (draft?.id === theme.id) setDraft(null); }}><Trash2 size={14} /></button></div>)}</div>
     {draft && <section className="theme-designer" aria-label="테마 편집기">
@@ -55,7 +58,7 @@ export function ThemeSettings({ settings, update }: { settings: Settings; update
       <label className="theme-field">기본 사진 틀<select aria-label="테마 기본 사진 틀" value={draft.defaultFrame} onChange={e => change({ defaultFrame: e.target.value as ThemeDesign['defaultFrame'] })}>{Object.entries(FRAME_NAMES).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
       <label className="theme-field">모서리 {draft.radius}px<input aria-label="테마 모서리" type="range" min={0} max={24} value={draft.radius} onChange={e => change({ radius: +e.target.value })} /></label>
       <label className="theme-field">불투명도 {draft.opacity}%<input aria-label="테마 불투명도" type="range" min={0} max={100} value={draft.opacity} onChange={e => change({ opacity: +e.target.value })} /></label>
-      <label className="theme-field">글꼴<select aria-label="테마 글꼴" value={draft.fontFamily} onChange={e => change({ fontFamily: e.target.value })}><option value="">시스템 기본</option>{[...new Set([draft.fontFamily, ...fonts])].filter(Boolean).map(font => <option key={font}>{font}</option>)}</select></label>
+      <label className="theme-field">글꼴<select aria-label="테마 글꼴" value={draft.fontFamily} onChange={e => change({ fontFamily: e.target.value })}><option value="">테마 기본</option>{[...new Set([draft.fontFamily, ...BUNDLED_FONTS, ...fonts])].filter(Boolean).map(font => <option key={font}>{font}</option>)}</select></label>
       <div className="theme-field"><span>글자 크기</span><FontSizeSpinner label="테마 글자 크기" value={draft.fontSize} change={fontSize => change({ fontSize })} /></div>
       <label className="theme-field">선 두께<select aria-label="테마 선 두께" value={draft.lineWidth} onChange={e => change({ lineWidth: +e.target.value })}>{Array.from({ length: 13 }, (_, i) => i / 2).map(v => <option key={v} value={v}>{v}px</option>)}</select></label>
       <div className="theme-save-actions"><button className="primary" disabled={busy || !draft.name.trim()} onClick={() => void save()}>저장하고 적용</button>{saved.some(t => t.id === draft.id) && <button disabled={busy || !draft.name.trim()} onClick={() => void save(true)}><Copy size={14} /> 새 테마로 저장</button>}</div>

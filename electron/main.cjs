@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, protocol, net, nativeImage, Tray, Menu, dialog, shell, screen, clipboard } = require('electron');
+const { app, BrowserWindow, ipcMain, protocol, net, nativeImage, Tray, Menu, dialog, shell, screen, clipboard, nativeTheme } = require('electron');
 const fs = require('node:fs');
 const path = require('node:path');
 const { randomUUID } = require('node:crypto');
@@ -87,6 +87,7 @@ async function createWindow() {
     const saved = JSON.parse(fs.readFileSync(path.join(store.directory, 'window.json'), 'utf8'));
     if (['x', 'y', 'width', 'height'].every(key => Number.isFinite(saved[key])) && screen.getAllDisplays().some(d => saved.x + 120 > d.workArea.x && saved.x < d.workArea.x + d.workArea.width - 120 && saved.y + 50 > d.workArea.y && saved.y < d.workArea.y + d.workArea.height - 50)) bounds = saved;
   } catch { /* First launch or display layout changed. */ }
+  nativeTheme.themeSource = store.data.settings.colorMode;
   window = new BrowserWindow({
     ...bounds, minWidth: 760, minHeight: 540,
     frame: false, transparent: true, backgroundColor: '#00000000', hasShadow: false,
@@ -316,6 +317,7 @@ else {
           app.setLoginItemSettings({ openAtLogin: settings.startAtLogin, path: executable });
         }
         store.saveSettings(settings);
+        nativeTheme.themeSource = settings.colorMode;
       } catch (error) { try { applyMode(previous.windowMode); } catch {} throw error; }
       updateTray();
       return settings;
@@ -333,7 +335,9 @@ else {
       const raw = JSON.parse(fs.readFileSync(result.filePaths[0], 'utf8'));
       const answer = await dialog.showMessageBox(window, { type: 'question', title: '백업 불러오기', message: '현재 달력을 백업의 기록으로 바꿀까요?', detail: '현재 기록과 사진은 데이터 폴더에 별도 백업한 뒤 불러옵니다.', buttons: ['취소', '불러오기'], defaultId: 0, cancelId: 0 });
       if (answer.response !== 1) return null;
-      return store.restoreBackup(raw, prepareImage);
+      const restored = await store.restoreBackup(raw, prepareImage);
+      nativeTheme.themeSource = restored.settings.colorMode;
+      return restored;
     }));
     handle('calendar:folder', () => shell.openPath(store.directory));
     ipcMain.on('window:resize-begin', (event, edge, x, y) => { checkSender(event); resizer?.begin(edge, x, y); });

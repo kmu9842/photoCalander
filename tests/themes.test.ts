@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { BUILTIN_THEMES } from '../src/themes';
+import { BUILTIN_THEMES, resolvedTheme } from '../src/themes';
 import { photoBox } from '../src/photo-layout';
 const { CalendarStore, validateSettings, DEFAULT_SETTINGS, validateEntry } = createRequire(import.meta.url)('../electron/store.cjs');
 const dirs: string[] = [];
@@ -12,6 +12,21 @@ const make = () => { const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'photocal
 afterEach(() => dirs.splice(0).forEach(dir => fs.rmSync(dir, { recursive: true, force: true })));
 const photo = { id: 'photo', file: randomUUID() + '.jpg', name: '추억.jpg', width: 1200, height: 800 };
 describe('saved themes and photo arrangements', () => {
+  it('follows system brightness by default, persists overrides and keeps the selected design', () => {
+    const { colorMode: _mode, softFocus: _focus, ...old } = DEFAULT_SETTINGS;
+    expect(validateSettings(old)).toMatchObject({ colorMode: 'system', softFocus: true });
+    const light = resolvedTheme(DEFAULT_SETTINGS, false), dark = resolvedTheme(DEFAULT_SETTINGS, true);
+    expect(light.mode).toBe('light'); expect(dark.mode).toBe('dark');
+    expect(dark.id).toBe(light.id); expect(dark.defaultFrame).toBe(light.defaultFrame);
+    expect(dark.background).not.toBe(light.background);
+    const store = make();
+    store.saveSettings({ ...store.data.settings, colorMode: 'light', softFocus: false });
+    const settings = new CalendarStore(store.directory).data.settings;
+    expect(settings).toMatchObject({ colorMode: 'light', softFocus: false });
+    expect(resolvedTheme(settings, true).mode).toBe('light');
+    expect(() => validateSettings({ ...settings, colorMode: 'unknown' })).toThrow();
+    expect(() => validateSettings({ ...settings, softFocus: 'yes' })).toThrow();
+  });
   it('preserves legacy defaults while persisting custom themes and per-photo placement through backup and restart', async () => {
     expect(validateSettings(DEFAULT_SETTINGS)).toEqual(DEFAULT_SETTINGS);
     const store = make();

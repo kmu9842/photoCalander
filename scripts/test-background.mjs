@@ -12,6 +12,7 @@ let app;
 try {
   app = await electron.launch({ args: [root], env });
   let page = await app.firstWindow();
+  await page.emulateMedia({ colorScheme: 'light' });
   const widget = page.locator('.widget');
   const toggle = page.locator('.navigation').getByRole('button', { name: '달력 배경색', exact: true });
   const palette = page.getByRole('group', { name: '달력 배경색 팔레트' });
@@ -42,7 +43,7 @@ try {
   await palette.getByRole('button', { name: '#bfdbfe 색상', exact: true }).click();
   await settings.getByRole('button', { name: '설정 닫기', exact: true }).click();
   await page.getByRole('button', { name: '다크 테마', exact: true }).click();
-  await expect(widget).toHaveClass(/theme-dark/);
+  await expect(widget).toHaveClass(/theme-polaroid mode-dark/);
   await expect(widget).toHaveCSS('background-color', 'rgba(191, 219, 254, 0.3)');
   // Per-day highlights and light-dismiss remain independent of the background.
   await page.locator('.day-cell.is-today').click({ position: { x: 30, y: 17 } });
@@ -61,7 +62,7 @@ try {
   await expect(page.locator('.day-cell.is-today')).toHaveCSS('background-color', 'rgba(253, 186, 116, 0.4)');
   await page.locator('.navigation').getByRole('button', { name: '달력 배경색', exact: true }).click();
   await page.getByRole('button', { name: '기본색', exact: true }).click();
-  await expect(page.locator('.widget')).toHaveCSS('background-color', 'rgba(24, 24, 26, 0.3)');
+  await expect(page.locator('.widget')).toHaveCSS('background-color', 'rgba(34, 34, 34, 0.3)');
   await page.getByRole('button', { name: '라이트 테마', exact: true }).click();
   await expect(page.locator('.widget')).toHaveCSS('background-color', 'rgba(255, 255, 255, 0.3)');
   await page.locator('.navigation').getByRole('button', { name: '달력 배경색', exact: true }).click();

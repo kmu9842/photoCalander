@@ -6,10 +6,10 @@
 .designed-theme .navigation{position:absolute;right:0;bottom:10px}
 .designed-theme .month-title>span:first-child,.designed-theme .month-title>b{display:none}
 .designed-theme.layout-classic .month-title>span:first-child,.designed-theme.layout-classic .month-title>b{display:initial}
-.themed-month{display:flex;align-items:baseline;gap:10px;color:var(--text);font-size:calc(32px * var(--font-scale,1))!important;line-height:1.1;letter-spacing:-1.5px;text-transform:uppercase;font-weight:800}
+.themed-month{display:flex;align-items:baseline;gap:13px;color:var(--text);font-family:var(--title-font,'Cormorant Garamond',serif);font-size:calc(39px * var(--font-scale,1))!important;line-height:1.05;letter-spacing:1.4px;text-transform:uppercase;font-weight:600}
 .themed-month small{font:inherit}
-.layout-glass .themed-month{font-family:'Segoe Script','Lucida Handwriting',cursive;text-transform:none;font-weight:400;letter-spacing:-2px;flex-direction:column;gap:2px}
-.layout-glass .themed-month small{font:18px 'Segoe UI',sans-serif;align-self:center;letter-spacing:4px}
+.layout-glass .themed-month{font-family:var(--title-font,'Caveat',cursive);text-transform:none;font-size:calc(45px * var(--font-scale,1))!important;font-weight:500;letter-spacing:0;flex-direction:column;gap:2px}
+.layout-glass .themed-month small{font-family:var(--date-font,'Cormorant Garamond',serif);font-size:calc(17px * var(--font-scale,1));font-weight:400;align-self:center;letter-spacing:5px}
 .layout-glass .month-header{min-height:144px}
 .designed-theme .weekdays{height:30px;align-items:center}
 .layout-paper .weekdays{border-top:var(--grid-line-width) solid var(--line);border-left:var(--grid-line-width) solid var(--line)}
@@ -19,11 +19,16 @@
 .layout-paper .is-today .date-number{color:var(--accent);background:transparent;border:1.5px solid var(--accent);border-radius:50% 46% 48% 42%;transform:rotate(-5deg)}
 .layout-glass .weekdays>div{color:var(--text);letter-spacing:2px}
 .layout-glass .calendar-grid{border-top:var(--grid-line-width) solid var(--line)}
-.layout-glass .note-text,.layout-glass .date-number{text-shadow:0 1px 3px #0009}
+.layout-glass.mode-dark .note-text,.layout-glass.mode-dark .date-number{text-shadow:0 1px 3px #0009}
 .layout-glass .date-number{color:var(--text)}
 .layout-glass .is-today .date-number{border:1px solid var(--accent);background:transparent;color:var(--accent)}
 .designed-theme .modal,.designed-theme .palette-popover{background:var(--panel)}
 .designed-theme::before,.theme-preview::before,.frame-art{filter:grayscale(1)}
+.designed-theme.mode-dark::before{filter:grayscale(1) invert(1)}
+.designed-theme .month-title small{font-weight:400}
+.designed-theme .weekdays{letter-spacing:1.2px}
+.designed-theme .date-number{font-family:var(--date-font,'Cormorant Garamond','Gowun Dodum',serif);font-weight:600;font-size:calc(15px * var(--font-scale,1))}
+.designed-theme .note-text{line-height:1.6;letter-spacing:.1px}
 .designed-theme .sunday .date-number,.designed-theme .saturday .date-number,.designed-theme .weekdays>div,.widget.designed-theme .day-cell[data-holiday] .date-number,.designed-theme .holiday-name{color:var(--text)}
 .widget.designed-theme .day-cell[data-holiday].is-today .date-number{background:transparent;color:var(--accent)}
 .designed-theme .day-cell.outside{background-color:#88888806}
@@ -33,7 +38,20 @@
 .designed-theme .delete-photo{background:#0008}
 .designed-theme .more-photos{background:#0007}
 .loading-shell{background:#f4f4f4;color:#444}.loading-shell button{border-color:#bbb}
-@container calendar-layout (max-width:980px){.designed-theme .month-header{margin-left:15px;margin-right:15px;min-height:118px}.themed-month{font-size:calc(24px * var(--font-scale,1))!important}.designed-theme .navigation{gap:1px}.designed-theme .navigation .control-separator{margin:0 3px}}
+@container calendar-layout (max-width:980px){.designed-theme .month-header{margin-left:15px;margin-right:15px;min-height:118px}.themed-month{font-size:calc(29px * var(--font-scale,1))!important}.layout-glass .themed-month{font-size:calc(36px * var(--font-scale,1))!important}.designed-theme .navigation{gap:1px}.designed-theme .navigation .control-separator{margin:0 3px}}
+
+/* Keep image, input and control layers sharp; soften calendar ink only. */
+.soft-focus{--ink-blur:.45px}
+.soft-focus .month-title,.soft-focus .weekdays,.soft-focus .date-number,.soft-focus .other-month,.soft-focus .holiday-name,.soft-focus .calendar .note-text{filter:blur(var(--ink-blur))}
+.soft-focus .calendar-grid{position:relative;border-left-color:transparent}
+.soft-focus .calendar-grid::before{content:'';position:absolute;left:0;top:0;bottom:0;width:var(--grid-line-width);background:var(--line);filter:blur(var(--ink-blur));pointer-events:none;z-index:4}
+.widget.soft-focus .day-cell{border-right-color:transparent;border-bottom-color:transparent}
+/* Paint inside the padding box so photo cells with overflow:hidden keep their lines. */
+.soft-focus .day-cell::after{content:'';position:absolute;inset:0;border-right:var(--grid-line-width) solid var(--line);border-bottom:var(--grid-line-width) solid var(--line);filter:blur(var(--ink-blur));pointer-events:none;z-index:4}
+.soft-focus.layout-glass .calendar-grid{border-top-color:transparent}
+.soft-focus.layout-glass .calendar-grid::after{content:'';position:absolute;left:0;right:0;top:0;height:var(--grid-line-width);background:var(--line);filter:blur(var(--ink-blur));pointer-events:none;z-index:4}
+.soft-focus.designed-theme .month-header{border-top-color:transparent}
+.soft-focus.designed-theme .month-header::after{content:'';position:absolute;left:0;right:0;top:-1px;height:1px;background:var(--line);filter:blur(var(--ink-blur));pointer-events:none}
 
 .framed-image{display:block;position:relative;width:100%;height:100%;filter:drop-shadow(0 2px 2px #0003)}
 .framed-image.frame-none{display:contents;filter:none}
@@ -87,8 +105,8 @@
 .theme-card[aria-pressed=true]{outline:2px solid var(--accent);outline-offset:1px}
 .theme-preview{position:relative;isolation:isolate;overflow:hidden;min-height:135px;padding:12px;border:1px solid;pointer-events:none}
 .theme-preview:before{content:'';position:absolute;inset:0;z-index:-1;background:url('/assets/analog-paper.jpg') center / 108% 108%;opacity:var(--preview-paper,0)}
-.theme-preview>strong{font-size:13px;letter-spacing:-.4px;display:flex;gap:5px}
-.preview-glass>strong{font-family:'Segoe Script',cursive;text-transform:capitalize;font-size:13px}
+.theme-preview>strong{font:600 17px 'Cormorant Garamond',serif;letter-spacing:.6px;display:flex;gap:5px}
+.preview-glass>strong{font-family:'Caveat',cursive;text-transform:capitalize;font-size:20px}
 .preview-week{font:5px/1.5 'Segoe UI',sans-serif;white-space:nowrap;margin-top:10px;text-align:center;letter-spacing:.3px}
 .preview-grid{display:grid;grid-template-columns:repeat(7,1fr);position:relative;border-left:1px solid var(--preview-line);border-top:1px solid var(--preview-line)}
 .preview-grid>span{height:17px;font:6px 'Segoe UI',sans-serif;padding:2px;border-right:1px solid var(--preview-line);border-bottom:1px solid var(--preview-line)}

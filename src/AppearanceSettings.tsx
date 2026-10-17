@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import type { HolidayResult, Settings } from './types';
 
-export const fontStack = (family: string) => `${family ? JSON.stringify(family) + ',' : ''}'Segoe UI','Malgun Gothic',sans-serif`;
+export const BUNDLED_FONTS = ['Gowun Dodum', 'Cormorant Garamond', 'Caveat'];
+export const fontStack = (family: string) => `${family ? JSON.stringify(family) + ',' : ''}'Gowun Dodum','Segoe UI','Malgun Gothic',sans-serif`;
 const countryNames = new Intl.DisplayNames(['ko'], { type: 'region' });
 export const countryName = (code: string) => code ? countryNames.of(code) || code : '감지 안 됨';
 
@@ -13,9 +14,9 @@ export function AppearanceSettings({ settings, update }: { settings: Settings; u
     window.calendar.installedFonts().then(value => { if (active) setFonts(value); }).catch(() => { if (active) setFontError('설치된 글꼴 목록을 읽지 못했습니다. 설정을 다시 열어 주세요.'); });
     return () => { active = false; };
   }, []);
-  const choices = [...new Set([...(settings.fontFamily ? [settings.fontFamily] : []), ...fonts])];
+  const choices = [...new Set([...(settings.fontFamily ? [settings.fontFamily] : []), ...BUNDLED_FONTS, ...fonts])];
   return <>
-    <div className="setting-row"><div><strong>글꼴</strong>{fontError && <p role="status">{fontError}</p>}</div><select aria-label="글꼴" value={settings.fontFamily} onChange={e => void update({ fontFamily: e.target.value })}><option value="">시스템 기본</option>{choices.map(font => <option key={font} value={font} style={{ fontFamily: fontStack(font) }}>{font}</option>)}</select></div>
+    <div className="setting-row"><div><strong>글꼴</strong>{fontError && <p role="status">{fontError}</p>}</div><select aria-label="글꼴" value={settings.fontFamily} onChange={e => void update({ fontFamily: e.target.value })}><option value="">테마 기본 · 고운 돋움</option>{choices.map(font => <option key={font} value={font} style={{ fontFamily: fontStack(font) }}>{font}</option>)}</select></div>
     <div className="setting-row"><strong>달력 선 두께</strong><select aria-label="달력 선 두께" value={settings.lineWidth} onChange={e => void update({ lineWidth: Number(e.target.value) })}>{Array.from({ length: 13 }, (_, i) => i / 2).map(width => <option key={width} value={width}>{width === 0 ? '선 없음' : `${width}px`}</option>)}</select></div>
   </>;
 }

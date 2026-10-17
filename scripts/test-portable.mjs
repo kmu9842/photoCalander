@@ -31,7 +31,9 @@ try {
   browser = await chromium.connectOverCDP(`http://127.0.0.1:${port}`);
   page = browser.contexts()[0].pages()[0];
   await expect(page.locator('.widget')).toHaveClass(/theme-polaroid/);
-  await expect(page.locator('.widget')).toHaveCSS('background-color', 'rgba(255, 255, 255, 0.3)');
+  const dark = await page.evaluate(() => matchMedia('(prefers-color-scheme: dark)').matches);
+  await expect(page.locator('.widget')).toHaveClass(new RegExp(`mode-${dark ? 'dark' : 'light'}.*soft-focus`));
+  await expect(page.locator('.widget')).toHaveCSS('background-color', dark ? 'rgba(34, 34, 34, 0.3)' : 'rgba(255, 255, 255, 0.3)');
   await page.locator('.navigation').getByRole('button', { name: '달력 배경색', exact: true }).click();
   await page.getByRole('group', { name: '달력 배경색 팔레트' }).getByRole('button', { name: '#bfdbfe 색상', exact: true }).click();
   await expect(page.locator('.widget')).toHaveCSS('background-color', 'rgba(191, 219, 254, 0.3)');
